@@ -134,12 +134,22 @@ def order_send(
 
 
 def _load_bars_full_csv(csv_path: Path) -> List[Dict[str, object]]:
-    """
-    CSV（ローソク＋MA＋RSI）を読み込み、1行=1辞書の配列で返す。
+    """CSV（ローソク＋MA＋RSI）を読み込み、1行=1辞書の配列で返す。
 
-    csvのヘッダー
-    time,open,high,low,close,tick_volume,spread,real_volume,moving_average_short,moving_average_middle,moving_average_long,rsi
+    概要:
+        EA（COPY_MA）が出力した CSV を読み込み、時刻や数値の型を整えて返す。
+        ヘッダー例: time,open,high,low,close,tick_volume,spread,real_volume,
+        moving_average_short,moving_average_middle,moving_average_long,rsi
 
+    引数:
+        csv_path: 読み込む CSV ファイルのパス
+
+    戻り値:
+        各行を辞書にした配列。
+        - time は UTC の datetime
+        - open/high/low/close および MA/RSI は float
+        - tick_volume/spread/real_volume は int
+        - 未知列は文字列のまま保持
     """
     out: List[Dict[str, object]] = []
     with csv_path.open("r", encoding="utf-8") as f:
@@ -194,24 +204,41 @@ class OperatorMT5:
     ) -> None:
         """ブリッジの入出力に使うパス/ファイル名/プレフィクスを設定する。
 
-        Args:
+        引数:
             common_dir: MT5 の Common/Files にマウントされた共有ディレクトリ
             cmd_file_name: EA が監視するコマンドファイル名（例: mt5_cmd.txt）
             resp_prefix: 応答ファイルの接頭辞（例: mt5_resp_）
+
+        戻り値:
+            なし
         """
         self.common_dir = common_dir
         self.cmd_file_name = cmd_file_name
         self.resp_prefix = resp_prefix
 
     def new_id(self) -> str:
-        """リクエストIDを生成（UTC時刻+短い乱数）。"""
+        """リクエストIDを生成（UTC時刻+短い乱数）。
+
+        引数:
+            なし
+
+        戻り値:
+            生成したリクエストID文字列。
+        """
         return (
             datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ_")
             + uuid.uuid4().hex[:6]
         )
 
     def send(self, kv: Dict[str, str]) -> Dict[str, str]:
-        """コマンドファイルへ key=value を書き、応答を待つ。"""
+        """コマンドファイルへ key=value を書き、応答を待つ。
+
+        引数:
+            kv: 送信するパラメータ辞書（必須キー: id）
+
+        戻り値:
+            応答内容の辞書。
+        """
         self._write_kv_file(kv)
         return self._wait(kv["id"])
 
@@ -232,7 +259,7 @@ class OperatorMT5:
         moving_average_short,moving_average_middle,moving_average_long,rsi の
         列を持つCSVを出力します。
 
-        Args:
+        引数:
             symbol: 取得する銘柄名（例: "GOLD"）
             timeframe: 時間足（例: "M15", "H1", ...）
             lookback_bars: 取得するバー本数（末尾が最新。0以下はEA側で全バー）
@@ -242,8 +269,8 @@ class OperatorMT5:
             moving_average_method: 移動平均線の算出方法（SMA/EMA/SMMA/LWMA）
             price_source: インジケータの適用価格（CLOSE/OPEN/HIGH/LOW/...）
 
-        Returns:
-            生成されたCSVの `Path`。実体が出るまで短時間ポーリングします。
+        戻り値:
+            生成された CSV の `Path`。実体が出るまで短時間ポーリングします。
         """
         cmd_id = self.new_id()
         kv: Dict[str, str] = {
@@ -281,11 +308,25 @@ class OperatorMT5:
         return csv_path
 
     def _wait(self, cmd_id: str) -> Dict[str, str]:
-        """応答ファイル（mt5_resp_<id>.txt）が現れるまで既定秒待つ。"""
+        """応答ファイル（mt5_resp_<id>.txt）が現れるまで既定秒待つ。
+
+        引数:
+            cmd_id: 応答を待つリクエストID
+
+        戻り値:
+            応答内容の辞書（タイムアウト時は例外）。
+        """
         return self._wait_resp(cmd_id, type(self).DEFAULT_TIMEOUT_SEC)
 
     def _write_kv_file(self, kv: Dict[str, str]) -> None:
-        """コマンドファイルを書き換え時衝突を避けるため一時ファイル→置換で書く。"""
+        """コマンドファイルを書き換え時衝突を避けるため一時ファイル→置換で書く。
+
+        引数:
+            kv: 書き出す key=value の辞書
+
+        戻り値:
+            なし
+        """
         path = self.common_dir / self.cmd_file_name
         tmp = path.with_suffix(".tmp")
         with tmp.open("w", encoding="utf-8", newline="\n") as f:
@@ -294,7 +335,15 @@ class OperatorMT5:
         tmp.replace(path)
 
     def _wait_resp(self, cmd_id: str, timeout_sec: float) -> Dict[str, str]:
-        """指定IDの応答ファイルをポーリングで待ち、辞書化して返す。"""
+        """指定IDの応答ファイルをポーリングで待ち、辞書化して返す。
+
+        引数:
+            cmd_id: リクエストID
+            timeout_sec: タイムアウト秒
+
+        戻り値:
+            応答内容の辞書。タイムアウト時は TimeoutError を送出。
+        """
         end = time.monotonic() + timeout_sec
         resp = self.common_dir / f"{self.resp_prefix}{cmd_id}.txt"
         logger.debug("wait_resp: %s", resp)
@@ -312,7 +361,14 @@ class OperatorMT5:
 
     @staticmethod
     def _read_kv_file(path: Path) -> Dict[str, str]:
-        """key=value 形式ファイルを辞書に変換する（空行/不正行はスキップ）。"""
+        """key=value 形式ファイルを辞書に変換する（空行/不正行はスキップ）。
+
+        引数:
+            path: 読み込むファイルのパス
+
+        戻り値:
+            解析した key/value の辞書。
+        """
         out: Dict[str, str] = {}
         with path.open("r", encoding="utf-8") as f:
             for line in f:
@@ -325,7 +381,14 @@ class OperatorMT5:
 
     @staticmethod
     def _parse_mt5_time(cell: str) -> datetime:
-        """MT5の時刻セルをUTCのdatetimeへ変換（POSIX秒/日付文字列の双方に対応）。"""
+        """MT5の時刻セルをUTCのdatetimeへ変換（POSIX秒/日付文字列の双方に対応）。
+
+        引数:
+            cell: 時刻セルの文字列
+
+        戻り値:
+            UTC の datetime オブジェクト。
+        """
         s = cell.strip()
         try:
             return datetime.fromtimestamp(int(float(s)), tz=timezone.utc)

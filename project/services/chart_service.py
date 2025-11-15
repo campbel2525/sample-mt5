@@ -9,8 +9,11 @@ Row = Tuple[datetime, float, float, float, float]
 def format_timeframe_label(tf: str) -> str:
     """時間足コードを日本語ラベルへ変換する
 
-    Args:
+    引数:
         tf: MT5 の時間足文字列（例: "M5", "H1"）
+
+    戻り値:
+        対応する日本語ラベル（例: "5分足", "1時間足", "日足", "週足", "1ヶ月足" など）。
     """
     if tf.startswith("M") and tf[1:].isdigit():
         return f"{tf[1:]}分足"
@@ -33,11 +36,14 @@ def is_golden_cross(
 ) -> bool:
     """ゴールデンクロス判定
 
-    Args:
+    引数:
         prev_short: 直前バー短期移動平均
         prev_long: 直前バー長期移動平均
         latest_short: 最新バー短期移動平均
         latest_long: 最新バー長期移動平均
+
+    戻り値:
+        条件を満たす場合は True、それ以外は False。
     """
     return prev_short <= prev_long and latest_short > latest_long
 
@@ -50,11 +56,14 @@ def is_death_cross(
 ) -> bool:
     """デッドクロス判定
 
-    Args:
+    引数:
         prev_short: 直前バー短期移動平均
         prev_long: 直前バー長期移動平均
         latest_short: 最新バー短期移動平均
         latest_long: 最新バー長期移動平均
+
+    戻り値:
+        条件を満たす場合は True、それ以外は False。
     """
     return prev_short >= prev_long and latest_short < latest_long
 
@@ -66,10 +75,13 @@ def is_price_crash(
 ) -> bool:
     """指定値幅以上の下落になっているかを判定する
 
-    Args:
+    引数:
         prev_close: 直前バーの終値
         latest_close: 最新バーの終値
         min_drop: 暴落とみなす最小下落幅
+
+    戻り値:
+        下落幅が `min_drop` 以上であれば True、それ以外は False。
     """
     if min_drop <= 0:
         return False
@@ -83,10 +95,13 @@ def is_price_surge(
 ) -> bool:
     """指定値幅以上の上昇になっているかを判定する
 
-    Args:
+    引数:
         prev_close: 直前バーの終値
         latest_close: 最新バーの終値
         min_rise: 暴騰とみなす最小上昇幅
+
+    戻り値:
+        上昇幅が `min_rise` 以上であれば True、それ以外は False。
     """
     if min_rise <= 0:
         return False
@@ -94,11 +109,14 @@ def is_price_surge(
 
 
 def compute_rsi(closes: List[float], period: int = 14) -> List[float]:
-    """Wilder方式でRSIの系列を計算する（先頭periodはNaN）
+    """Wilder方式でRSIの系列を計算する（先頭 `period` は NaN）
 
-    Args:
+    引数:
         closes: 終値の配列（古→新）
-        period: RSI計算の期間
+        period: RSI 計算の期間
+
+    戻り値:
+        RSI のリスト。長さは `closes` と同じ。先頭 `period` 要素は NaN。
     """
     n = len(closes)
     if period <= 0 or n == 0:

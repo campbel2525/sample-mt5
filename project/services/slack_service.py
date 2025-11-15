@@ -7,9 +7,15 @@ from urllib import error, request
 def notify_slack(webhook_url: str, message: str) -> None:
     """Slack の Incoming Webhook へテキストを送信する
 
-    Args:
+    概要:
+        Webhook エンドポイントへ JSON ペイロードを POST する。
+
+    引数:
         webhook_url: Slack で発行した Webhook URL
         message: 投稿する本文
+
+    戻り値:
+        なし（エラー時は例外を送出）
     """
     if not webhook_url:
         raise RuntimeError("Slack webhook URL is not configured.")

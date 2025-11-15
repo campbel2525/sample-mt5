@@ -53,7 +53,7 @@ def detect_symbol_cross_events(
 ) -> List[str]:
     """指定シンボルの移動平均と終値を取得し、クロス/暴騰/暴落を検知する
 
-    Args:
+    引数:
         symbol: 銘柄名
         timeframe: 取得する時間足
         surge_rise_threshold: 暴騰検知を有効化する上昇幅。None で無効
@@ -62,6 +62,9 @@ def detect_symbol_cross_events(
         moving_average_middle: 移動平均（中期）の期間設定
         moving_average_long: 移動平均（長期）の期間設定
         moving_average_method: 移動平均の算出方法 (SMA など)
+
+    戻り値:
+        検知したイベントを説明する文字列のリスト（検知なしは空リスト）。
     """
     events: List[str] = []
 
@@ -191,7 +194,14 @@ def detect_symbol_cross_events(
 
 
 def detect_all_cross_events() -> List[str]:
-    """登録済みシンボルすべてでクロス検知を実行し結果をまとめる"""
+    """登録済みシンボルすべてでクロス検知を実行し結果をまとめる
+
+    引数:
+        なし
+
+    戻り値:
+        すべての対象で検知されたイベント文のリスト。
+    """
     detected_events: List[str] = []
 
     try:
@@ -234,7 +244,14 @@ def detect_all_cross_events() -> List[str]:
 
 
 def main() -> None:
-    """クロス検知を定期実行し検知内容を Slack へ通知する"""
+    """クロス検知を定期実行し検知内容を Slack へ通知する
+
+    引数:
+        なし
+
+    戻り値:
+        なし
+    """
     try:
         while True:
             detected_events = detect_all_cross_events()
