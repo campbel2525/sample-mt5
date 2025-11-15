@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
 //|                                                   WSL_FileBridge |
-//|                        File-IPC bridge for MT5/WSL/Docker (MA対応)|
+//|                        File-IPC bridge for MT5/WSL/Docker (MA/RSI対応)|
 //| - Common\Files の命令ファイルを読み、応答やCSVを書き出すEA          |
 //| - DLL不要 / FW不要。SYMBOL_INFO_TICK / ORDER_SEND / COPY_RATES    |
-//|   に加えて GET_MA_LATEST / COPY_MA を実装                         |
+//|   に加えて GET_MA_LATEST / COPY_MA / GET_RSI_LATEST / COPY_RSI を実装 |
 //+------------------------------------------------------------------+
 #property strict
 
@@ -13,9 +13,16 @@ input string CMD_FILE_NAME = "mt5_cmd.txt"; // Python側と一致させる
 // 応答ファイル: "mt5_resp_<id>.txt"
 // レートCSV   : "mt5_rates_<id>.csv"
 // MA CSV     : "mt5_ma_<id>.csv"
+// RSI CSV    : "mt5_rsi_<id>.csv"
 
 //================ ユーティリティ ================//
-string Trim(const string s){ string t=s; StringTrimLeft(t); StringTrimRight(t); return t; }
+string Trim(const string s)
+{
+   string t = s;
+   StringTrimLeft(t);
+   StringTrimRight(t);
+   return t;
+}
 
 bool ParseLine(const string line, string &key, string &value)
 {
@@ -26,13 +33,20 @@ bool ParseLine(const string line, string &key, string &value)
    return true;
 }
 
-string RespFileName(const string id){ return "mt5_resp_" + id + ".txt"; }
+string RespFileName(const string id)
+{
+   return "mt5_resp_" + id + ".txt";
+}
 
 //---- 応答共通 ----//
 void WriteResponseError(const string id, const string message, const int code=0)
 {
    int h = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE){ Print("resp(error) open failed id=",id," err=",GetLastError()); return; }
+   if(h==INVALID_HANDLE)
+   {
+      Print("resp(error) open failed id=",id," err=",GetLastError());
+      return;
+   }
    FileWriteString(h, "ok=false\r\n");
    FileWriteString(h, "id="+id+"\r\n");
    FileWriteString(h, "error="+message+"\r\n");
@@ -43,7 +57,11 @@ void WriteResponseError(const string id, const string message, const int code=0)
 void WriteResponseOK_Tick(const string id, const MqlTick &tick, const string symbol)
 {
    int h = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE){ Print("resp(tick) open failed id=",id," err=",GetLastError()); return; }
+   if(h==INVALID_HANDLE)
+   {
+      Print("resp(tick) open failed id=",id," err=",GetLastError());
+      return;
+   }
    FileWriteString(h, "ok=true\r\n");
    FileWriteString(h, "id="+id+"\r\n");
    FileWriteString(h, "symbol="+symbol+"\r\n");
@@ -57,7 +75,11 @@ void WriteResponseOK_Tick(const string id, const MqlTick &tick, const string sym
 void WriteResponseOK_Order(const string id, const ulong ticket, const int retcode, const double price)
 {
    int h = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE){ Print("resp(order) open failed id=",id," err=",GetLastError()); return; }
+   if(h==INVALID_HANDLE)
+   {
+      Print("resp(order) open failed id=",id," err=",GetLastError());
+      return;
+   }
    FileWriteString(h, "ok=true\r\n");
    FileWriteString(h, "id="+id+"\r\n");
    FileWriteString(h, "ticket="+(string)ticket+"\r\n");
@@ -69,7 +91,11 @@ void WriteResponseOK_Order(const string id, const ulong ticket, const int retcod
 void WriteResponseOK_Rates(const string id, const string symbol, const string timeframe, const int count, const string csvfile)
 {
    int h = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE){ Print("resp(rates) open failed id=",id," err=",GetLastError()); return; }
+   if(h==INVALID_HANDLE)
+   {
+      Print("resp(rates) open failed id=",id," err=",GetLastError());
+      return;
+   }
    FileWriteString(h, "ok=true\r\n");
    FileWriteString(h, "id="+id+"\r\n");
    FileWriteString(h, "symbol="+symbol+"\r\n");
@@ -86,7 +112,11 @@ void WriteResponseOK_MA_Latest(const string id, const string symbol, const strin
                                const datetime bar_time, const double close_price)
 {
    int h = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE){ Print("resp(ma_latest) open failed id=",id," err=",GetLastError()); return; }
+   if(h==INVALID_HANDLE)
+   {
+      Print("resp(ma_latest) open failed id=",id," err=",GetLastError());
+      return;
+   }
    FileWriteString(h, "ok=true\r\n");
    FileWriteString(h, "id="+id+"\r\n");
    FileWriteString(h, "symbol="+symbol+"\r\n");
@@ -104,10 +134,39 @@ void WriteResponseOK_MA_Latest(const string id, const string symbol, const strin
    FileClose(h);
 }
 
+//---- RSI 最新値応答 ----//
+void WriteResponseOK_RSI_Latest(const string id,
+                                const string symbol,
+                                const string timeframe,
+                                const int period,
+                                const string price,
+                                const double rsi_value,
+                                const datetime bar_time,
+                                const double close_price)
+{
+   int h = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
+   if(h==INVALID_HANDLE)
+   {
+      Print("resp(rsi_latest) open failed id=",id," err=",GetLastError());
+      return;
+   }
+   FileWriteString(h, "ok=true\r\n");
+   FileWriteString(h, "id="+id+"\r\n");
+   FileWriteString(h, "symbol="+symbol+"\r\n");
+   FileWriteString(h, "timeframe="+timeframe+"\r\n");
+   FileWriteString(h, "period="+(string)period+"\r\n");
+   FileWriteString(h, "applied_price="+price+"\r\n");
+   FileWriteString(h, "rsi="+DoubleToString(rsi_value,_Digits)+"\r\n");
+   FileWriteString(h, "bar_time="+(string)bar_time+"\r\n");
+   FileWriteString(h, "close="+DoubleToString(close_price,_Digits)+"\r\n");
+   FileClose(h);
+}
+
 //---- 文字列→ENUM: timeframe ----//
 bool StrToTimeframe(const string s, ENUM_TIMEFRAMES &tf)
 {
-   string u=s; StringToUpper(u);
+   string u=s;
+   StringToUpper(u);
    if(u=="M1"){tf=PERIOD_M1;return true;}
    if(u=="M5"){tf=PERIOD_M5;return true;}
    if(u=="M15"){tf=PERIOD_M15;return true;}
@@ -123,7 +182,8 @@ bool StrToTimeframe(const string s, ENUM_TIMEFRAMES &tf)
 //---- 文字列→ENUM: MAメソッド ----//
 bool StrToMaMethod(const string s, ENUM_MA_METHOD &m, string &norm)
 {
-   string u=s; StringToUpper(u);
+   string u=s;
+   StringToUpper(u);
    if(u=="SMA" || u=="MODE_SMA"){ m=MODE_SMA; norm="SMA"; return true; }
    if(u=="EMA" || u=="MODE_EMA"){ m=MODE_EMA; norm="EMA"; return true; }
    if(u=="SMMA"|| u=="MODE_SMMA"){ m=MODE_SMMA; norm="SMMA"; return true; }
@@ -134,7 +194,8 @@ bool StrToMaMethod(const string s, ENUM_MA_METHOD &m, string &norm)
 //---- 文字列→ENUM: 適用価格 ----//
 bool StrToAppliedPrice(const string s, ENUM_APPLIED_PRICE &ap, string &norm)
 {
-   string u=s; StringToUpper(u);
+   string u=s;
+   StringToUpper(u);
    if(u=="" || u=="CLOSE" || u=="PRICE_CLOSE"){ ap=PRICE_CLOSE; norm="CLOSE"; return true; }
    if(u=="OPEN"  || u=="PRICE_OPEN"){ ap=PRICE_OPEN; norm="OPEN"; return true; }
    if(u=="HIGH"  || u=="PRICE_HIGH"){ ap=PRICE_HIGH; norm="HIGH"; return true; }
@@ -148,7 +209,8 @@ bool StrToAppliedPrice(const string s, ENUM_APPLIED_PRICE &ap, string &norm)
 //---- 文字列→ENUM: 注文タイプ ----//
 bool StrToOrderType(const string s, ENUM_ORDER_TYPE &ot)
 {
-   string u=s; StringToUpper(u);
+   string u=s;
+   StringToUpper(u);
    if(u=="BUY")  { ot=ORDER_TYPE_BUY;  return true; }
    if(u=="SELL") { ot=ORDER_TYPE_SELL; return true; }
    return false;
@@ -159,7 +221,11 @@ string WriteRatesCsv(const string id, const MqlRates &rates[], const int count)
 {
    string fname="mt5_rates_"+id+".csv";
    int h=FileOpen(fname, FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE){ Print("rates csv open failed id=",id," err=",GetLastError()); return ""; }
+   if(h==INVALID_HANDLE)
+   {
+      Print("rates csv open failed id=",id," err=",GetLastError());
+      return "";
+   }
    FileWriteString(h,"time,open,high,low,close,tick_volume,spread,real_volume\r\n");
    for(int i=0;i<count;i++)
    {
@@ -173,7 +239,8 @@ string WriteRatesCsv(const string id, const MqlRates &rates[], const int count)
          (string)rates[i].real_volume+"\r\n";
       FileWriteString(h,line);
    }
-   FileClose(h); return fname;
+   FileClose(h);
+   return fname;
 }
 
 //---- MA CSV ----//
@@ -182,7 +249,11 @@ string WriteMaCsv(const string id, const datetime &times[], const double &close[
 {
    string fname="mt5_ma_"+id+".csv";
    int h=FileOpen(fname, FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE){ Print("ma csv open failed id=",id," err=",GetLastError()); return ""; }
+   if(h==INVALID_HANDLE)
+   {
+      Print("ma csv open failed id=",id," err=",GetLastError());
+      return "";
+   }
    FileWriteString(h,"time,close,ma_short,ma_middle,ma_long\r\n");
    for(int i=0;i<count;i++)
    {
@@ -193,7 +264,31 @@ string WriteMaCsv(const string id, const datetime &times[], const double &close[
          DoubleToString(maL[i],_Digits)+"\r\n";
       FileWriteString(h,line);
    }
-   FileClose(h); return fname;
+   FileClose(h);
+   return fname;
+}
+
+//---- RSI CSV ----//
+string WriteRsiCsv(const string id, const datetime &times[], const double &close[],
+                   const double &rsi[], const int count)
+{
+   string fname="mt5_rsi_"+id+".csv";
+   int h=FileOpen(fname, FILE_WRITE|FILE_COMMON|FILE_ANSI);
+   if(h==INVALID_HANDLE)
+   {
+      Print("rsi csv open failed id=",id," err=",GetLastError());
+      return "";
+   }
+   FileWriteString(h,"time,close,rsi\r\n");
+   for(int i=0;i<count;i++)
+   {
+      string line=(string)times[i]+","+
+         DoubleToString(close[i],_Digits)+","+
+         DoubleToString(rsi[i],_Digits)+"\r\n";
+      FileWriteString(h,line);
+   }
+   FileClose(h);
+   return fname;
 }
 
 //================ ライフサイクル ================//
@@ -205,8 +300,15 @@ int OnInit()
    return(INIT_SUCCEEDED);
 }
 
-void OnDeinit(const int reason){ EventKillTimer(); }
-void OnTick(){ /* ポーリングはOnTimer */ }
+void OnDeinit(const int reason)
+{
+   EventKillTimer();
+}
+
+void OnTick()
+{
+   /* ポーリングはOnTimer */
+}
 
 void OnTimer()
 {
@@ -218,7 +320,11 @@ void OnTimer()
 void ProcessCommand()
 {
    int h=FileOpen(CMD_FILE_NAME, FILE_READ|FILE_COMMON|FILE_ANSI|FILE_SHARE_READ|FILE_SHARE_WRITE);
-   if(h==INVALID_HANDLE){ Print("CMD open failed err=",GetLastError()); return; }
+   if(h==INVALID_HANDLE)
+   {
+      Print("CMD open failed err=",GetLastError());
+      return;
+   }
 
    // 受け取りパラメータ（既定値つき）
    string id="", action="", symbol="", type_s="", comment="";
@@ -230,7 +336,8 @@ void ProcessCommand()
    while(!FileIsEnding(h))
    {
       string line=FileReadString(h);
-      string k,v; if(!ParseLine(line,k,v)) continue;
+      string k,v;
+      if(!ParseLine(line,k,v)) continue;
 
       if(k=="id") id=v;
       else if(k=="action") action=v;
@@ -258,71 +365,184 @@ void ProcessCommand()
    if(!FileDelete(CMD_FILE_NAME, FILE_COMMON))
       Print("CMD delete warn err=",GetLastError());
 
-   if(id==""){ WriteResponseError("unknown","missing id"); return; }
-   if(action==""){ WriteResponseError(id,"missing action"); return; }
+   if(id=="")
+   {
+      WriteResponseError("unknown","missing id");
+      return;
+   }
+   if(action=="")
+   {
+      WriteResponseError(id,"missing action");
+      return;
+   }
 
    StringToUpper(action);
 
    //--- ティック取得
    if(action=="SYMBOL_INFO_TICK")
    {
-      if(symbol==""){ WriteResponseError(id,"missing symbol"); return; }
-      MqlTick t; if(!SymbolInfoTick(symbol,t)){ WriteResponseError(id,"SymbolInfoTick failed",(int)GetLastError()); return; }
-      WriteResponseOK_Tick(id,t,symbol); return;
+      if(symbol=="")
+      {
+         WriteResponseError(id,"missing symbol");
+         return;
+      }
+      MqlTick t;
+      if(!SymbolInfoTick(symbol,t))
+      {
+         WriteResponseError(id,"SymbolInfoTick failed",(int)GetLastError());
+         return;
+      }
+      WriteResponseOK_Tick(id,t,symbol);
+      return;
    }
    //--- 成行注文
    else if(action=="ORDER_SEND")
    {
-      if(symbol==""||type_s==""||volume<=0.0){ WriteResponseError(id,"missing symbol/type/volume"); return; }
-      ENUM_ORDER_TYPE ot; if(!StrToOrderType(type_s, ot)){ WriteResponseError(id,"unknown order type"); return; }
+      if(symbol==""||type_s==""||volume<=0.0)
+      {
+         WriteResponseError(id,"missing symbol/type/volume");
+         return;
+      }
+      ENUM_ORDER_TYPE ot;
+      if(!StrToOrderType(type_s, ot))
+      {
+         WriteResponseError(id,"unknown order type");
+         return;
+      }
 
-      MqlTick t; if(!SymbolInfoTick(symbol,t)){ WriteResponseError(id,"SymbolInfoTick failed",(int)GetLastError()); return; }
+      MqlTick t;
+      if(!SymbolInfoTick(symbol,t))
+      {
+         WriteResponseError(id,"SymbolInfoTick failed",(int)GetLastError());
+         return;
+      }
 
-      MqlTradeRequest req; MqlTradeResult res; ZeroMemory(req); ZeroMemory(res);
-      req.action=TRADE_ACTION_DEAL; req.symbol=symbol; req.type=ot; req.volume=volume; req.deviation=deviation; req.comment=comment;
-      req.price=(ot==ORDER_TYPE_BUY ? t.ask : t.bid);
-      if(sl>0) req.sl=sl; if(tp>0) req.tp=tp;
+      MqlTradeRequest req;
+      MqlTradeResult  res;
+      ZeroMemory(req);
+      ZeroMemory(res);
+      req.action   = TRADE_ACTION_DEAL;
+      req.symbol   = symbol;
+      req.type     = ot;
+      req.volume   = volume;
+      req.deviation= deviation;
+      req.comment  = comment;
+      req.price    = (ot==ORDER_TYPE_BUY ? t.ask : t.bid);
+      if(sl>0) req.sl=sl;
+      if(tp>0) req.tp=tp;
 
-      if(!OrderSend(req,res)){ WriteResponseError(id,"OrderSend() failed",(int)GetLastError()); return; }
-      WriteResponseOK_Order(id,res.order,res.retcode,req.price); return;
+      if(!OrderSend(req,res))
+      {
+         WriteResponseError(id,"OrderSend() failed",(int)GetLastError());
+         return;
+      }
+      WriteResponseOK_Order(id,res.order,res.retcode,req.price);
+      return;
    }
-   //--- レートCSV
+   //--- レートCSV（count<=0 なら全バー）
    else if(action=="COPY_RATES")
    {
-      if(symbol==""){ WriteResponseError(id,"missing symbol"); return; }
-      if(count<=0) count=300;
-      ENUM_TIMEFRAMES tf; if(!StrToTimeframe(timeframe_s, tf)){ WriteResponseError(id,"bad timeframe: "+timeframe_s); return; }
+      if(symbol=="")
+      {
+         WriteResponseError(id,"missing symbol");
+         return;
+      }
 
-      MqlRates rates[]; int copied=CopyRates(symbol, tf, 0, count, rates);
-      if(copied<=0){ WriteResponseError(id,"CopyRates failed",(int)GetLastError()); return; }
+      ENUM_TIMEFRAMES tf;
+      if(!StrToTimeframe(timeframe_s, tf))
+      {
+         WriteResponseError(id,"bad timeframe: "+timeframe_s);
+         return;
+      }
+
+      ResetLastError();
+      int bars_total = Bars(symbol, tf);
+      int err_bars   = GetLastError();
+      if(bars_total <= 0)
+      {
+         WriteResponseError(id,"Bars() failed",(int)err_bars);
+         return;
+      }
+
+      // count<=0 なら全バー。それ以外は min(count, bars_total)
+      if(count <= 0 || count > bars_total)
+         count = bars_total;
+
+      MqlRates rates[];
+      int copied = CopyRates(symbol, tf, 0, count, rates);
+      if(copied <= 0)
+      {
+         WriteResponseError(id,"CopyRates failed",(int)GetLastError());
+         return;
+      }
+
       string csv=WriteRatesCsv(id, rates, copied);
-      if(csv==""){ WriteResponseError(id,"write csv failed"); return; }
-      WriteResponseOK_Rates(id,symbol,timeframe_s,copied,csv); return;
+      if(csv=="")
+      {
+         WriteResponseError(id,"write csv failed");
+         return;
+      }
+      WriteResponseOK_Rates(id,symbol,timeframe_s,copied,csv);
+      return;
    }
    //--- 最新MA値（短/中/長）を返す
    else if(action=="GET_MA_LATEST")
    {
-      if(symbol==""){ WriteResponseError(id,"missing symbol"); return; }
-      ENUM_TIMEFRAMES tf; if(!StrToTimeframe(timeframe_s, tf)){ WriteResponseError(id,"bad timeframe: "+timeframe_s); return; }
-      ENUM_MA_METHOD mm; string method_norm=""; if(!StrToMaMethod(method_s, mm, method_norm)){ WriteResponseError(id,"bad method: "+method_s); return; }
-      ENUM_APPLIED_PRICE ap; string price_norm=""; if(!StrToAppliedPrice(price_s, ap, price_norm)){ WriteResponseError(id,"bad applied_price: "+price_s); return; }
+      if(symbol=="")
+      {
+         WriteResponseError(id,"missing symbol");
+         return;
+      }
+      ENUM_TIMEFRAMES tf;
+      if(!StrToTimeframe(timeframe_s, tf))
+      {
+         WriteResponseError(id,"bad timeframe: "+timeframe_s);
+         return;
+      }
+      ENUM_MA_METHOD mm;
+      string         method_norm="";
+      if(!StrToMaMethod(method_s, mm, method_norm))
+      {
+         WriteResponseError(id,"bad method: "+method_s);
+         return;
+      }
+      ENUM_APPLIED_PRICE ap;
+      string             price_norm="";
+      if(!StrToAppliedPrice(price_s, ap, price_norm))
+      {
+         WriteResponseError(id,"bad applied_price: "+price_s);
+         return;
+      }
 
-      if(period_short<=0) period_short=5;
+      if(period_short<=0)  period_short=5;
       if(period_middle<=0) period_middle=20;
       if(period_long<=0)   period_long=60;
-      if(ma_shift<0) ma_shift=1; // 既定は確定バー
+      if(ma_shift<0)       ma_shift=1; // 既定は確定バー
 
       int hS=iMA(symbol, tf, period_short, 0, mm, ap);
       int hM=iMA(symbol, tf, period_middle, 0, mm, ap);
       int hL=iMA(symbol, tf, period_long,   0, mm, ap);
       if(hS==INVALID_HANDLE || hM==INVALID_HANDLE || hL==INVALID_HANDLE)
-      { WriteResponseError(id,"iMA handle failed",(int)GetLastError()); return; }
+      {
+         WriteResponseError(id,"iMA handle failed",(int)GetLastError());
+         return;
+      }
 
       double bS[], bM[], bL[];
-      if(CopyBuffer(hS,0,ma_shift,1,bS)!=1 || CopyBuffer(hM,0,ma_shift,1,bM)!=1 || CopyBuffer(hL,0,ma_shift,1,bL)!=1)
-      { WriteResponseError(id,"CopyBuffer(iMA) failed",(int)GetLastError()); return; }
+      if(CopyBuffer(hS,0,ma_shift,1,bS)!=1 ||
+         CopyBuffer(hM,0,ma_shift,1,bM)!=1 ||
+         CopyBuffer(hL,0,ma_shift,1,bL)!=1)
+      {
+         WriteResponseError(id,"CopyBuffer(iMA) failed",(int)GetLastError());
+         return;
+      }
 
-      MqlRates r[]; if(CopyRates(symbol, tf, ma_shift, 1, r)!=1){ WriteResponseError(id,"CopyRates for MA bar failed",(int)GetLastError()); return; }
+      MqlRates r[];
+      if(CopyRates(symbol, tf, ma_shift, 1, r)!=1)
+      {
+         WriteResponseError(id,"CopyRates for MA bar failed",(int)GetLastError());
+         return;
+      }
 
       WriteResponseOK_MA_Latest(id, symbol, timeframe_s,
                                 period_short, period_middle, period_long,
@@ -331,37 +551,100 @@ void ProcessCommand()
                                 r[0].time, r[0].close);
       return;
    }
-   //--- MAシリーズCSV（短/中/長）
+   //--- MAシリーズCSV（短/中/長）（count<=0 なら全バー）
    else if(action=="COPY_MA")
    {
-      if(symbol==""){ WriteResponseError(id,"missing symbol"); return; }
-      if(count<=0) count=300;
-      ENUM_TIMEFRAMES tf; if(!StrToTimeframe(timeframe_s, tf)){ WriteResponseError(id,"bad timeframe: "+timeframe_s); return; }
-      ENUM_MA_METHOD mm; string method_norm=""; if(!StrToMaMethod(method_s, mm, method_norm)){ WriteResponseError(id,"bad method: "+method_s); return; }
-      ENUM_APPLIED_PRICE ap; string price_norm=""; if(!StrToAppliedPrice(price_s, ap, price_norm)){ WriteResponseError(id,"bad applied_price: "+price_s); return; }
+      if(symbol=="")
+      {
+         WriteResponseError(id,"missing symbol");
+         return;
+      }
+
+      ENUM_TIMEFRAMES tf;
+      if(!StrToTimeframe(timeframe_s, tf))
+      {
+         WriteResponseError(id,"bad timeframe: "+timeframe_s);
+         return;
+      }
+      ENUM_MA_METHOD mm;
+      string         method_norm="";
+      if(!StrToMaMethod(method_s, mm, method_norm))
+      {
+         WriteResponseError(id,"bad method: "+method_s);
+         return;
+      }
+      ENUM_APPLIED_PRICE ap;
+      string             price_norm="";
+      if(!StrToAppliedPrice(price_s, ap, price_norm))
+      {
+         WriteResponseError(id,"bad applied_price: "+price_s);
+         return;
+      }
+
+      if(period_short<=0)  period_short=5;
+      if(period_middle<=0) period_middle=20;
+      if(period_long<=0)   period_long=60;
+
+      ResetLastError();
+      int bars_total = Bars(symbol, tf);
+      int err_bars   = GetLastError();
+      if(bars_total <= 0)
+      {
+         WriteResponseError(id,"Bars() failed",(int)err_bars);
+         return;
+      }
+      if(count <= 0 || count > bars_total)
+         count = bars_total;
 
       int hS=iMA(symbol, tf, MathMax(1,period_short), 0, mm, ap);
       int hM=iMA(symbol, tf, MathMax(1,period_middle),0, mm, ap);
       int hL=iMA(symbol, tf, MathMax(1,period_long),  0, mm, ap);
       if(hS==INVALID_HANDLE || hM==INVALID_HANDLE || hL==INVALID_HANDLE)
-      { WriteResponseError(id,"iMA handle failed",(int)GetLastError()); return; }
+      {
+         WriteResponseError(id,"iMA handle failed",(int)GetLastError());
+         return;
+      }
 
-      MqlRates rates[]; int copied=CopyRates(symbol, tf, 0, count, rates);
-      if(copied<=0){ WriteResponseError(id,"CopyRates failed",(int)GetLastError()); return; }
+      MqlRates rates[];
+      int copied=CopyRates(symbol, tf, 0, count, rates);
+      if(copied<=0)
+      {
+         WriteResponseError(id,"CopyRates failed",(int)GetLastError());
+         return;
+      }
 
       double bS[], bM[], bL[];
-      if(CopyBuffer(hS,0,0,copied,bS)!=copied || CopyBuffer(hM,0,0,copied,bM)!=copied || CopyBuffer(hL,0,0,copied,bL)!=copied)
-      { WriteResponseError(id,"CopyBuffer(iMA) count mismatch",(int)GetLastError()); return; }
+      if(CopyBuffer(hS,0,0,copied,bS)!=copied ||
+         CopyBuffer(hM,0,0,copied,bM)!=copied ||
+         CopyBuffer(hL,0,0,copied,bL)!=copied)
+      {
+         WriteResponseError(id,"CopyBuffer(iMA) count mismatch",(int)GetLastError());
+         return;
+      }
 
-      datetime ts[]; double closes[];
-      ArrayResize(ts, copied); ArrayResize(closes, copied);
-      for(int i=0;i<copied;i++){ ts[i]=rates[i].time; closes[i]=rates[i].close; }
+      datetime ts[];
+      double   closes[];
+      ArrayResize(ts, copied);
+      ArrayResize(closes, copied);
+      for(int i=0;i<copied;i++)
+      {
+         ts[i]=rates[i].time;
+         closes[i]=rates[i].close;
+      }
 
       string csv=WriteMaCsv(id, ts, closes, bS, bM, bL, copied);
-      if(csv==""){ WriteResponseError(id,"write ma csv failed"); return; }
+      if(csv=="")
+      {
+         WriteResponseError(id,"write ma csv failed");
+         return;
+      }
 
       int resp=FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-      if(resp==INVALID_HANDLE){ Print("resp(copy_ma) open failed id=",id); return; }
+      if(resp==INVALID_HANDLE)
+      {
+         Print("resp(copy_ma) open failed id=",id);
+         return;
+      }
       FileWriteString(resp,"ok=true\r\n");
       FileWriteString(resp,"id="+id+"\r\n");
       FileWriteString(resp,"symbol="+symbol+"\r\n");
@@ -376,9 +659,161 @@ void ProcessCommand()
       FileClose(resp);
       return;
    }
+   //--- 最新RSI値
+   else if(action=="GET_RSI_LATEST")
+   {
+      if(symbol=="")
+      {
+         WriteResponseError(id,"missing symbol");
+         return;
+      }
+
+      ENUM_TIMEFRAMES tf;
+      if(!StrToTimeframe(timeframe_s, tf))
+      {
+         WriteResponseError(id,"bad timeframe: "+timeframe_s);
+         return;
+      }
+
+      ENUM_APPLIED_PRICE ap;
+      string             price_norm="";
+      if(!StrToAppliedPrice(price_s, ap, price_norm))
+      {
+         WriteResponseError(id,"bad applied_price: "+price_s);
+         return;
+      }
+
+      int period_rsi = period_short;
+      if(period_rsi <= 0)
+         period_rsi = 14;
+      if(ma_shift < 0)
+         ma_shift = 1; // 既定は確定バー
+
+      int hRsi = iRSI(symbol, tf, period_rsi, ap);
+      if(hRsi == INVALID_HANDLE)
+      {
+         WriteResponseError(id,"iRSI handle failed",(int)GetLastError());
+         return;
+      }
+
+      double bufRsi[];
+      if(CopyBuffer(hRsi, 0, ma_shift, 1, bufRsi) != 1)
+      {
+         WriteResponseError(id,"CopyBuffer(iRSI) failed",(int)GetLastError());
+         return;
+      }
+
+      MqlRates r[];
+      if(CopyRates(symbol, tf, ma_shift, 1, r) != 1)
+      {
+         WriteResponseError(id,"CopyRates for RSI bar failed",(int)GetLastError());
+         return;
+      }
+
+      WriteResponseOK_RSI_Latest(id, symbol, timeframe_s,
+                                 period_rsi, price_norm,
+                                 bufRsi[0], r[0].time, r[0].close);
+      return;
+   }
+   //--- RSIシリーズCSV（count<=0 なら全バー）
+   else if(action=="COPY_RSI")
+   {
+      if(symbol=="")
+      {
+         WriteResponseError(id,"missing symbol");
+         return;
+      }
+
+      ENUM_TIMEFRAMES tf;
+      if(!StrToTimeframe(timeframe_s, tf))
+      {
+         WriteResponseError(id,"bad timeframe: "+timeframe_s);
+         return;
+      }
+
+      ENUM_APPLIED_PRICE ap;
+      string             price_norm="";
+      if(!StrToAppliedPrice(price_s, ap, price_norm))
+      {
+         WriteResponseError(id,"bad applied_price: "+price_s);
+         return;
+      }
+
+      int period_rsi = period_short;
+      if(period_rsi <= 0)
+         period_rsi = 14;
+
+      ResetLastError();
+      int bars_total = Bars(symbol, tf);
+      int err_bars   = GetLastError();
+      if(bars_total <= 0)
+      {
+         WriteResponseError(id,"Bars() failed",(int)err_bars);
+         return;
+      }
+      if(count <= 0 || count > bars_total)
+         count = bars_total;
+
+      int hRsi = iRSI(symbol, tf, period_rsi, ap);
+      if(hRsi == INVALID_HANDLE)
+      {
+         WriteResponseError(id,"iRSI handle failed",(int)GetLastError());
+         return;
+      }
+
+      MqlRates rates[];
+      int copied = CopyRates(symbol, tf, 0, count, rates);
+      if(copied <= 0)
+      {
+         WriteResponseError(id,"CopyRates failed",(int)GetLastError());
+         return;
+      }
+
+      double bufRsi[];
+      if(CopyBuffer(hRsi, 0, 0, copied, bufRsi) != copied)
+      {
+         WriteResponseError(id,"CopyBuffer(iRSI) count mismatch",(int)GetLastError());
+         return;
+      }
+
+      datetime ts[];
+      double   closes[];
+      ArrayResize(ts, copied);
+      ArrayResize(closes, copied);
+      for(int i=0;i<copied;i++)
+      {
+         ts[i]     = rates[i].time;
+         closes[i] = rates[i].close;
+      }
+
+      string csv = WriteRsiCsv(id, ts, closes, bufRsi, copied);
+      if(csv=="")
+      {
+         WriteResponseError(id,"write rsi csv failed");
+         return;
+      }
+
+      int resp = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
+      if(resp == INVALID_HANDLE)
+      {
+         Print("resp(copy_rsi) open failed id=",id);
+         return;
+      }
+      FileWriteString(resp,"ok=true\r\n");
+      FileWriteString(resp,"id="+id+"\r\n");
+      FileWriteString(resp,"symbol="+symbol+"\r\n");
+      FileWriteString(resp,"timeframe="+timeframe_s+"\r\n");
+      FileWriteString(resp,"period="+(string)period_rsi+"\r\n");
+      FileWriteString(resp,"applied_price="+price_norm+"\r\n");
+      FileWriteString(resp,"count="+(string)copied+"\r\n");
+      FileWriteString(resp,"data_file="+csv+"\r\n");
+      FileClose(resp);
+      return;
+   }
    else
    {
-      WriteResponseError(id, "unknown action: "+action); return;
+      WriteResponseError(id, "unknown action: "+action);
+      return;
    }
 }
 //+------------------------------------------------------------------+

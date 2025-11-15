@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, List
 
 Row = Tuple[datetime, float, float, float, float]
 
@@ -91,3 +91,54 @@ def is_price_surge(
     if min_rise <= 0:
         return False
     return (latest_close - prev_close) >= min_rise
+
+
+def compute_rsi(closes: List[float], period: int = 14) -> List[float]:
+    """Wilder方式でRSIの系列を計算する（先頭periodはNaN）
+
+    Args:
+        closes: 終値の配列（古→新）
+        period: RSI計算の期間
+    """
+    n = len(closes)
+    if period <= 0 or n == 0:
+        return [float("nan")] * n
+
+    # 変化量
+    gains: List[float] = [0.0] * n
+    losses: List[float] = [0.0] * n
+    for i in range(1, n):
+        delta = closes[i] - closes[i - 1]
+        if delta >= 0:
+            gains[i] = delta
+            losses[i] = 0.0
+        else:
+            gains[i] = 0.0
+            losses[i] = -delta
+
+    rsis: List[float] = [float("nan")] * n
+    if n <= period:
+        return rsis
+
+    # 初期平均（単純平均）
+    avg_gain = sum(gains[1 : period + 1]) / period
+    avg_loss = sum(losses[1 : period + 1]) / period
+
+    # 最初のRSI
+    if avg_loss == 0:
+        rsis[period] = 100.0
+    else:
+        rs = avg_gain / avg_loss
+        rsis[period] = 100.0 - (100.0 / (1.0 + rs))
+
+    # 以降は平滑移動
+    for i in range(period + 1, n):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+        if avg_loss == 0:
+            rsis[i] = 100.0
+        else:
+            rs = avg_gain / avg_loss
+            rsis[i] = 100.0 - (100.0 / (1.0 + rs))
+
+    return rsis

@@ -34,6 +34,11 @@ settings = Settings()
 logger = setup_logger(__name__, level=settings.log_level, fmt=settings.log_format)
 POLL_INTERVAL_SEC: float = 60.0
 DEBUG_MODE: bool = settings.debug_mode
+GET_CHART_COUNT: int = 2  # 取得する移動平均の本数
+MOVING_AVERAGE_METHOD: str = "SMA"  # 移動平均の算出方法
+MOVING_AVERAGE_SHORT: int = 5  # 短期移動平均の期間
+MOVING_AVERAGE_MIDDLE: int = 20  # 中期移動平均の期間
+MOVING_AVERAGE_LONG: int = 60  # 長期移動平均の期間
 
 
 last_notified: Dict[Tuple[str, str, str], datetime] = {}
@@ -42,30 +47,24 @@ last_notified: Dict[Tuple[str, str, str], datetime] = {}
 def detect_symbol_cross_events(
     symbol: str,
     timeframe: str,
-    count: int,
-    moving_average_short: int,
-    moving_average_middle: int,
-    moving_average_long: int,
-    moving_average_method: str,
-    applied_price: str,
-    timeout_sec: float,
-    surge_rise_threshold: Optional[float] = None,
-    crash_drop_threshold: Optional[float] = None,
+    surge_rise_threshold: Optional[float] = 30.0,
+    crash_drop_threshold: Optional[float] = 30.0,
+    moving_average_short: int = MOVING_AVERAGE_SHORT,
+    moving_average_middle: int = MOVING_AVERAGE_MIDDLE,
+    moving_average_long: int = MOVING_AVERAGE_LONG,
+    moving_average_method: str = MOVING_AVERAGE_METHOD,
 ) -> List[str]:
     """指定シンボルの移動平均と終値を取得し、クロス/暴騰/暴落を検知する
 
     Args:
         symbol: 銘柄名
         timeframe: 取得する時間足
-        count: ブリッジに要求する本数
+        surge_rise_threshold: 暴騰検知を有効化する上昇幅。None で無効
+        crash_drop_threshold: 暴落検知を有効化する下落幅。None で無効
         moving_average_short: 移動平均（短期）の期間設定
         moving_average_middle: 移動平均（中期）の期間設定
         moving_average_long: 移動平均（長期）の期間設定
         moving_average_method: 移動平均の算出方法 (SMA など)
-        applied_price: MT5 の価格種別
-        timeout_sec: ブリッジ応答待ちのタイムアウト秒数
-        surge_rise_threshold: 暴騰検知を有効化する上昇幅（ドル）。None で無効
-        crash_drop_threshold: 暴落検知を有効化する下落幅（ドル）。None で無効
     """
     events: List[str] = []
     cfg = build_bridge_config(
@@ -79,13 +78,11 @@ def detect_symbol_cross_events(
             cfg,
             symbol=symbol,
             timeframe=target_timeframe,
-            count=count,
             moving_average_short=moving_average_short,
             moving_average_middle=moving_average_middle,
             moving_average_long=moving_average_long,
             moving_average_method=moving_average_method,
-            applied_price=applied_price,
-            timeout_sec=timeout_sec,
+            get_chart_count=GET_CHART_COUNT,
         )
         fetched_rows = load_moving_average_csv(csv_path)
         try:
@@ -97,7 +94,7 @@ def detect_symbol_cross_events(
                 logger.debug("failed to delete %s: %s", csv_path, unlink_err)
         return fetched_rows
 
-    rows: List[Row] = _fetch_rows(timeframe)  # 古→新 で5本
+    rows: List[Row] = _fetch_rows(timeframe)
     logger.info(
         "# %s %s MovingAverage(%s,%s,%s) %s/%s",
         symbol,
@@ -106,7 +103,6 @@ def detect_symbol_cross_events(
         moving_average_middle,
         moving_average_long,
         moving_average_method,
-        applied_price,
     )
     for (
         t,
@@ -217,13 +213,6 @@ def detect_all_cross_events() -> List[str]:
         events = detect_symbol_cross_events(
             symbol="ZECUSD",  # 銘柄名
             timeframe="M15",  # 取得する時間足
-            count=5,  # ブリッジに要求する本数
-            moving_average_short=5,  # 移動平均（短期）の期間設定
-            moving_average_middle=20,  # 移動平均（中期）の期間設定
-            moving_average_long=60,  # 移動平均（長期）の期間設定
-            moving_average_method="SMA",  # 移動平均の算出方法 (SMA など)
-            applied_price="CLOSE",  # MT5 の価格種別
-            timeout_sec=20.0,  # ブリッジ応答待ちのタイムアウト秒数
             surge_rise_threshold=30.0,  # 暴騰検知を有効化する上昇幅（ドル
             crash_drop_threshold=30.0,  # 暴落検知を有効化する下落幅（ドル）
         )
@@ -235,13 +224,6 @@ def detect_all_cross_events() -> List[str]:
         events = detect_symbol_cross_events(
             symbol="GOLD",  # 銘柄名
             timeframe="M15",  # 取得する時間足
-            count=5,  # ブリッジに要求する本数
-            moving_average_short=5,  # 移動平均（短期）の期間設定
-            moving_average_middle=20,  # 移動平均（中期）の期間設定
-            moving_average_long=60,  # 移動平均（長期）の期間設定
-            moving_average_method="SMA",  # 移動平均の算出方法 (SMA など)
-            applied_price="CLOSE",  # MT5 の価格種別
-            timeout_sec=20.0,  # ブリッジ応答待ちのタイムアウト秒数
             surge_rise_threshold=30.0,  # 暴騰検知を有効化する上昇幅（ドル
             crash_drop_threshold=30.0,  # 暴落検知を有効化する下落幅（ドル）
         )
