@@ -10,34 +10,27 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from config.custom_logger import setup_logger
 from config.settings import Settings
 from services.chart_service import (
-    Row,
     format_timeframe_label,
     is_death_cross,
     is_golden_cross,
     is_price_crash,
     is_price_surge,
-    compute_rsi,
 )
-from services.mt5_service import (
-    build_bridge_config,
-    load_moving_average_csv,
-    send_copy_moving_average,
-    send_copy_rates,
-    load_rates_csv,
-)
+from services.mt5_service import get_market_data
 from services.slack_service import notify_slack
 
 settings = Settings()
 logger = setup_logger(__name__, level=settings.log_level, fmt=settings.log_format)
+
+# 設定
 POLL_INTERVAL_SEC: float = 60.0
 DEBUG_MODE: bool = settings.debug_mode
-GET_CHART_COUNT: int = 2  # 取得する移動平均の本数
+GET_CHART_COUNT: int = 2  # 取得するバー本数（末尾が最新）
 MOVING_AVERAGE_METHOD: str = "SMA"  # 移動平均の算出方法
 MOVING_AVERAGE_SHORT: int = 5  # 短期移動平均の期間
 MOVING_AVERAGE_MIDDLE: int = 20  # 中期移動平均の期間
@@ -71,54 +64,18 @@ def detect_symbol_cross_events(
         moving_average_method: 移動平均の算出方法 (SMA など)
     """
     events: List[str] = []
-    cfg = build_bridge_config(
-        common_dir=Path(settings.mt5_common_dir),
-        cmd_file_name=settings.mt5_cmd_file_name,
-        resp_prefix=settings.mt5_resp_prefix,
+
+    # すべてのデータ（OHLCV + MA + RSI）を取得
+    market_list_data = get_market_data(
+        symbol=symbol,
+        timeframe=timeframe,
+        lookback_bars=GET_CHART_COUNT,
+        moving_average_short=moving_average_short,
+        moving_average_middle=moving_average_middle,
+        moving_average_long=moving_average_long,
+        moving_average_method=moving_average_method,
+        price_source="CLOSE",
     )
-
-    def _fetch_ma_rows(target_timeframe: str) -> List[Row]:
-        csv_path = send_copy_moving_average(
-            cfg,
-            symbol=symbol,
-            timeframe=target_timeframe,
-            moving_average_short=moving_average_short,
-            moving_average_middle=moving_average_middle,
-            moving_average_long=moving_average_long,
-            moving_average_method=moving_average_method,
-            get_chart_count=GET_CHART_COUNT,
-        )
-        fetched_rows = load_moving_average_csv(csv_path)
-        try:
-            csv_path.unlink()
-        except FileNotFoundError:
-            pass
-        except OSError as unlink_err:
-            if DEBUG_MODE:
-                logger.debug("failed to delete %s: %s", csv_path, unlink_err)
-        return fetched_rows
-
-    def _fetch_rates(target_timeframe: str):
-        csv_path = send_copy_rates(
-            cfg,
-            symbol=symbol,
-            timeframe=target_timeframe,
-            get_chart_count=GET_CHART_COUNT,
-        )
-        rates = load_rates_csv(csv_path)
-        try:
-            csv_path.unlink()
-        except FileNotFoundError:
-            pass
-        except OSError as unlink_err:
-            if DEBUG_MODE:
-                logger.debug("failed to delete %s: %s", csv_path, unlink_err)
-        return rates
-
-    rows: List[Row] = _fetch_ma_rows(timeframe)
-    rates = _fetch_rates(timeframe)
-    closes_for_rsi = [r[4] for r in rates] if rates else [r[1] for r in rows]
-    rsi_series = compute_rsi(closes_for_rsi, period=RSI_PERIOD) if closes_for_rsi else []
     logger.info(
         "# %s %s MovingAverage(%s,%s,%s) %s",
         symbol,
@@ -128,103 +85,107 @@ def detect_symbol_cross_events(
         moving_average_long,
         moving_average_method,
     )
-    if rsi_series:
-        logger.info("RSI(%s) latest=%.2f", RSI_PERIOD, rsi_series[-1])
-    for (
-        t,
-        close,
-        moving_average_short_val,
-        moving_average_middle_val,
-        moving_average_long_val,
-    ) in rows:
-        timestamp_str = t.isoformat(timespec="seconds")
+    # # RSIはEA計算結果を利用
+    # if market_list_data:
+    #     try:
+    #         latest_rsi = float(market_list_data[-1]["rsi"])  # type: ignore[index]
+    #         logger.info("RSI latest=%.2f", latest_rsi)
+    #     except Exception:
+    #         pass
+
+    for market_data in market_list_data:
+        rsi_val = market_data.get("rsi")
+        rsi_display = f"{float(rsi_val):.2f}" if rsi_val is not None else "N/A"
         logger.info(
-            "[%s] close=%.5f  %s%s=%.5f  %s%s=%.5f  %s%s=%.5f",
-            timestamp_str,
-            close,
+            (
+                "[%s] open=%.5f high=%.5f low=%.5f close=%.5f  "
+                "%s%s=%.5f  %s%s=%.5f  %s%s=%.5f  rsi=%s"
+            ),
+            market_data["time"].isoformat(timespec="seconds"),
+            market_data["open"],
+            market_data["high"],
+            market_data["low"],
+            market_data["close"],
             moving_average_method,
             moving_average_short,
-            moving_average_short_val,
+            market_data["moving_average_short"],
             moving_average_method,
             moving_average_middle,
-            moving_average_middle_val,
+            market_data["moving_average_middle"],
             moving_average_method,
             moving_average_long,
-            moving_average_long_val,
+            market_data["moving_average_long"],
+            rsi_display,
         )
 
+    if len(market_list_data) < 2:
+        return events
+
     # チャートの状態を検知してテキストを作成する
-    if len(rows) >= 2:
-        prev = rows[-2]
-        latest = rows[-1]
-        prev_close = prev[1]
-        prev_moving_average_short = prev[2]
-        prev_moving_average_long = prev[4]
-        latest_close = latest[1]
-        latest_moving_average_short = latest[2]
-        latest_moving_average_long = latest[4]
+    prev_market_data = market_list_data[-2]
+    latest_market_data = market_list_data[-1]
 
-        # デッドクロス検知
-        if is_death_cross(
-            prev_moving_average_short,
-            prev_moving_average_long,
-            latest_moving_average_short,
-            latest_moving_average_long,
-        ):
-            key = (symbol, timeframe, "death")
-            event_time = latest[0]
-            if last_notified.get(key) != event_time:
-                last_notified[key] = event_time
-                events.append(
-                    f"- {symbol}が{format_timeframe_label(timeframe)}でデッドクロス"
-                )
+    # デッドクロス検知
+    if is_death_cross(
+        prev_market_data["moving_average_short"],
+        prev_market_data["moving_average_long"],
+        latest_market_data["moving_average_short"],
+        latest_market_data["moving_average_long"],
+    ):
+        key = (symbol, timeframe, "death")
+        event_time = latest_market_data["time"]
+        if last_notified.get(key) != event_time:
+            last_notified[key] = event_time
+            events.append(
+                f"- {symbol}が{format_timeframe_label(timeframe)}でデッドクロス"
+            )
 
-        # ゴールデンクロス検知
-        if is_golden_cross(
-            prev_moving_average_short,
-            prev_moving_average_long,
-            latest_moving_average_short,
-            latest_moving_average_long,
-        ):
-            key = (symbol, timeframe, "golden")
-            event_time = latest[0]
-            if last_notified.get(key) != event_time:
-                last_notified[key] = event_time
-                events.append(
-                    f"- {symbol}が{format_timeframe_label(timeframe)}でゴールデンクロス"
-                )
+    # ゴールデンクロス検知
+    if is_golden_cross(
+        prev_market_data["moving_average_short"],
+        prev_market_data["moving_average_long"],
+        latest_market_data["moving_average_short"],
+        latest_market_data["moving_average_long"],
+    ):
+        key = (symbol, timeframe, "golden")
+        event_time = latest_market_data["time"]
+        if last_notified.get(key) != event_time:
+            last_notified[key] = event_time
+            events.append(
+                f"- {symbol}が{format_timeframe_label(timeframe)}でゴールデンクロス"
+            )
 
-        # 暴騰検知
-        if surge_rise_threshold is not None and is_price_surge(
-            prev_close, latest_close, surge_rise_threshold
-        ):
-            key = (symbol, timeframe, "surge")
-            event_time = latest[0]
-            if last_notified.get(key) != event_time:
-                last_notified[key] = event_time
-                rise_amount = latest_close - prev_close
-                events.append(
-                    (
-                        f"- {symbol}が{format_timeframe_label(timeframe)}で"
-                        f"{rise_amount:.2f}ドル上昇 ({prev_close:.2f}→{latest_close:.2f})"
-                    )
+    # 暴騰検知
+    if surge_rise_threshold is not None and is_price_surge(
+        prev_market_data["close"], latest_market_data["close"], surge_rise_threshold
+    ):
+        key = (symbol, timeframe, "surge")
+        event_time = latest_market_data["time"]
+        if last_notified.get(key) != event_time:
+            last_notified[key] = event_time
+            rise_amount = latest_market_data["close"] - prev_market_data["close"]
+            events.append(
+                (
+                    f"- {symbol}が{format_timeframe_label(timeframe)}で"
+                    f"{rise_amount:.2f}ドル上昇 ({prev_market_data['close']:.2f}→{latest_market_data['close']:.2f})"
                 )
+            )
 
-        # 暴落検知
-        if crash_drop_threshold is not None and is_price_crash(
-            prev_close, latest_close, crash_drop_threshold
-        ):
-            key = (symbol, timeframe, "crash")
-            event_time = latest[0]
-            if last_notified.get(key) != event_time:
-                last_notified[key] = event_time
-                drop_amount = prev_close - latest_close
-                events.append(
-                    (
-                        f"- {symbol}が{format_timeframe_label(timeframe)}で"
-                        f"{drop_amount:.2f}ドル下落 ({prev_close:.2f}→{latest_close:.2f})"
-                    )
+    # 暴落検知
+    if crash_drop_threshold is not None and is_price_crash(
+        prev_market_data["close"], latest_market_data["close"], crash_drop_threshold
+    ):
+        key = (symbol, timeframe, "crash")
+        event_time = latest_market_data["time"]
+        if last_notified.get(key) != event_time:
+            last_notified[key] = event_time
+            drop_amount = prev_market_data["close"] - latest_market_data["close"]
+            events.append(
+                (
+                    f"- {symbol}が{format_timeframe_label(timeframe)}で"
+                    f"{drop_amount:.2f}ドル下落 ({prev_market_data['close']:.2f}→{latest_market_data['close']:.2f})"
                 )
+            )
 
     return events
 
@@ -234,8 +195,19 @@ def detect_all_cross_events() -> List[str]:
     detected_events: List[str] = []
 
     try:
+        # BTCUSD M5
+        events = detect_symbol_cross_events(
+            symbol="ZECUSD",  # 銘柄名
+            timeframe="M5",  # 取得する時間足
+            surge_rise_threshold=30.0,  # 暴騰検知を有効化する上昇幅（ドル
+            crash_drop_threshold=30.0,  # 暴落検知を有効化する下落幅（ドル）
+        )
+        detected_events.extend(events)
+    except Exception as e:
+        logger.warning("ZECUSD detection failed: %s", e)
 
-        #
+    try:
+        # BTCUSD M15
         events = detect_symbol_cross_events(
             symbol="ZECUSD",  # 銘柄名
             timeframe="M15",  # 取得する時間足
@@ -247,6 +219,7 @@ def detect_all_cross_events() -> List[str]:
         logger.warning("ZECUSD detection failed: %s", e)
 
     try:
+        # GOLD M15
         events = detect_symbol_cross_events(
             symbol="GOLD",  # 銘柄名
             timeframe="M15",  # 取得する時間足
