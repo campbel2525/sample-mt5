@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  mt5:
+    user: "${UID_GID}"
+    restart: "no"
+    tty: true
+    build:
+      context: ../../
+      dockerfile: ./docker/local/Dockerfile
+    ports:
+      - "127.0.0.1:9002:9002" # デバッグ用
+      - "127.0.0.1:8000:8000" # API用
+    volumes:
+      - ../../project:/project
+      - ${META_QUOTES_COMMON_FILE_PATH}:/mt5_common:rw
