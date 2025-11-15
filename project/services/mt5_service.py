@@ -134,7 +134,13 @@ def order_send(
 
 
 def _load_bars_full_csv(csv_path: Path) -> List[Dict[str, object]]:
-    """全部入りCSV（ローソク＋MA＋RSI）を読み込み、1行=1辞書の配列で返す。"""
+    """
+    CSV（ローソク＋MA＋RSI）を読み込み、1行=1辞書の配列で返す。
+
+    csvのヘッダー
+    time,open,high,low,close,tick_volume,spread,real_volume,moving_average_short,moving_average_middle,moving_average_long,rsi
+
+    """
     out: List[Dict[str, object]] = []
     with csv_path.open("r", encoding="utf-8") as f:
         rdr = csv.DictReader(f)
