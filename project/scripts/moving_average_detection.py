@@ -22,11 +22,14 @@ from services.chart_service import (
     is_golden_cross,
     is_price_crash,
     is_price_surge,
+    compute_rsi,
 )
 from services.mt5_service import (
     build_bridge_config,
     load_moving_average_csv,
     send_copy_moving_average,
+    send_copy_rates,
+    load_rates_csv,
 )
 from services.slack_service import notify_slack
 
@@ -39,6 +42,7 @@ MOVING_AVERAGE_METHOD: str = "SMA"  # 移動平均の算出方法
 MOVING_AVERAGE_SHORT: int = 5  # 短期移動平均の期間
 MOVING_AVERAGE_MIDDLE: int = 20  # 中期移動平均の期間
 MOVING_AVERAGE_LONG: int = 60  # 長期移動平均の期間
+RSI_PERIOD: int = 14  # RSI計算期間
 
 
 last_notified: Dict[Tuple[str, str, str], datetime] = {}
@@ -73,7 +77,7 @@ def detect_symbol_cross_events(
         resp_prefix=settings.mt5_resp_prefix,
     )
 
-    def _fetch_rows(target_timeframe: str) -> List[Row]:
+    def _fetch_ma_rows(target_timeframe: str) -> List[Row]:
         csv_path = send_copy_moving_average(
             cfg,
             symbol=symbol,
@@ -94,9 +98,29 @@ def detect_symbol_cross_events(
                 logger.debug("failed to delete %s: %s", csv_path, unlink_err)
         return fetched_rows
 
-    rows: List[Row] = _fetch_rows(timeframe)
+    def _fetch_rates(target_timeframe: str):
+        csv_path = send_copy_rates(
+            cfg,
+            symbol=symbol,
+            timeframe=target_timeframe,
+            get_chart_count=GET_CHART_COUNT,
+        )
+        rates = load_rates_csv(csv_path)
+        try:
+            csv_path.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError as unlink_err:
+            if DEBUG_MODE:
+                logger.debug("failed to delete %s: %s", csv_path, unlink_err)
+        return rates
+
+    rows: List[Row] = _fetch_ma_rows(timeframe)
+    rates = _fetch_rates(timeframe)
+    closes_for_rsi = [r[4] for r in rates] if rates else [r[1] for r in rows]
+    rsi_series = compute_rsi(closes_for_rsi, period=RSI_PERIOD) if closes_for_rsi else []
     logger.info(
-        "# %s %s MovingAverage(%s,%s,%s) %s/%s",
+        "# %s %s MovingAverage(%s,%s,%s) %s",
         symbol,
         timeframe,
         moving_average_short,
@@ -104,6 +128,8 @@ def detect_symbol_cross_events(
         moving_average_long,
         moving_average_method,
     )
+    if rsi_series:
+        logger.info("RSI(%s) latest=%.2f", RSI_PERIOD, rsi_series[-1])
     for (
         t,
         close,

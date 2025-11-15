@@ -2,8 +2,9 @@
 //|                                                   WSL_FileBridge |
 //|                        File-IPC bridge for MT5/WSL/Docker (MA/RSI対応)|
 //| - Common\Files の命令ファイルを読み、応答やCSVを書き出すEA          |
-//| - DLL不要 / FW不要。SYMBOL_INFO_TICK / ORDER_SEND / COPY_RATES    |
-//|   に加えて GET_MA_LATEST / COPY_MA / GET_RSI_LATEST / COPY_RSI を実装 |
+//| - DLL不要 / FW不要。SYMBOL_INFO_TICK / ORDER_SEND                 |
+//|   に加えて GET_MA_LATEST / COPY_MA(ローソク+MA+RSI全部入り)を実装
+// time,open,high,low,close,tick_volume,spread,real_volume,moving_average_short,moving_average_middle,moving_average_long,rsi
 //+------------------------------------------------------------------+
 #property strict
 
@@ -11,9 +12,7 @@
 input string CMD_FILE_NAME = "mt5_cmd.txt"; // Python側と一致させる
 
 // 応答ファイル: "mt5_resp_<id>.txt"
-// レートCSV   : "mt5_rates_<id>.csv"
-// MA CSV     : "mt5_ma_<id>.csv"
-// RSI CSV    : "mt5_rsi_<id>.csv"
+// データCSV   : "mt5_bars_<id>.csv"  （ローソク＋MA＋RSI）
 
 //================ ユーティリティ ================//
 string Trim(const string s)
@@ -88,23 +87,6 @@ void WriteResponseOK_Order(const string id, const ulong ticket, const int retcod
    FileClose(h);
 }
 
-void WriteResponseOK_Rates(const string id, const string symbol, const string timeframe, const int count, const string csvfile)
-{
-   int h = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE)
-   {
-      Print("resp(rates) open failed id=",id," err=",GetLastError());
-      return;
-   }
-   FileWriteString(h, "ok=true\r\n");
-   FileWriteString(h, "id="+id+"\r\n");
-   FileWriteString(h, "symbol="+symbol+"\r\n");
-   FileWriteString(h, "timeframe="+timeframe+"\r\n");
-   FileWriteString(h, "count="+(string)count+"\r\n");
-   FileWriteString(h, "data_file="+csvfile+"\r\n");
-   FileClose(h);
-}
-
 void WriteResponseOK_MA_Latest(const string id, const string symbol, const string timeframe,
                                const int pS, const int pM, const int pL,
                                const string method, const string price,
@@ -129,34 +111,6 @@ void WriteResponseOK_MA_Latest(const string id, const string symbol, const strin
    FileWriteString(h, "ma_short="+DoubleToString(maS,_Digits)+"\r\n");
    FileWriteString(h, "ma_middle="+DoubleToString(maM,_Digits)+"\r\n");
    FileWriteString(h, "ma_long="+DoubleToString(maL,_Digits)+"\r\n");
-   FileWriteString(h, "bar_time="+(string)bar_time+"\r\n");
-   FileWriteString(h, "close="+DoubleToString(close_price,_Digits)+"\r\n");
-   FileClose(h);
-}
-
-//---- RSI 最新値応答 ----//
-void WriteResponseOK_RSI_Latest(const string id,
-                                const string symbol,
-                                const string timeframe,
-                                const int period,
-                                const string price,
-                                const double rsi_value,
-                                const datetime bar_time,
-                                const double close_price)
-{
-   int h = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE)
-   {
-      Print("resp(rsi_latest) open failed id=",id," err=",GetLastError());
-      return;
-   }
-   FileWriteString(h, "ok=true\r\n");
-   FileWriteString(h, "id="+id+"\r\n");
-   FileWriteString(h, "symbol="+symbol+"\r\n");
-   FileWriteString(h, "timeframe="+timeframe+"\r\n");
-   FileWriteString(h, "period="+(string)period+"\r\n");
-   FileWriteString(h, "applied_price="+price+"\r\n");
-   FileWriteString(h, "rsi="+DoubleToString(rsi_value,_Digits)+"\r\n");
    FileWriteString(h, "bar_time="+(string)bar_time+"\r\n");
    FileWriteString(h, "close="+DoubleToString(close_price,_Digits)+"\r\n");
    FileClose(h);
@@ -216,17 +170,27 @@ bool StrToOrderType(const string s, ENUM_ORDER_TYPE &ot)
    return false;
 }
 
-//---- Rates CSV ----//
-string WriteRatesCsv(const string id, const MqlRates &rates[], const int count)
+//---- 全部入り CSV（ローソク＋MA＋RSI） ----//
+string WriteBarsFullCsv(const string id,
+                        const MqlRates &rates[],
+                        const double &maS[],
+                        const double &maM[],
+                        const double &maL[],
+                        const double &rsi[],
+                        const int count)
 {
-   string fname="mt5_rates_"+id+".csv";
+   string fname="mt5_bars_"+id+".csv";
    int h=FileOpen(fname, FILE_WRITE|FILE_COMMON|FILE_ANSI);
    if(h==INVALID_HANDLE)
    {
-      Print("rates csv open failed id=",id," err=",GetLastError());
+      Print("bars(full) csv open failed id=",id," err=",GetLastError());
       return "";
    }
-   FileWriteString(h,"time,open,high,low,close,tick_volume,spread,real_volume\r\n");
+
+   FileWriteString(h,
+      "time,open,high,low,close,tick_volume,spread,real_volume,"
+      "moving_average_short,moving_average_middle,moving_average_long,rsi\r\n");
+
    for(int i=0;i<count;i++)
    {
       string line=(string)rates[i].time+","+
@@ -236,54 +200,10 @@ string WriteRatesCsv(const string id, const MqlRates &rates[], const int count)
          DoubleToString(rates[i].close,_Digits)+","+
          (string)rates[i].tick_volume+","+
          (string)rates[i].spread+","+
-         (string)rates[i].real_volume+"\r\n";
-      FileWriteString(h,line);
-   }
-   FileClose(h);
-   return fname;
-}
-
-//---- MA CSV ----//
-string WriteMaCsv(const string id, const datetime &times[], const double &close[],
-                  const double &maS[], const double &maM[], const double &maL[], const int count)
-{
-   string fname="mt5_ma_"+id+".csv";
-   int h=FileOpen(fname, FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE)
-   {
-      Print("ma csv open failed id=",id," err=",GetLastError());
-      return "";
-   }
-   FileWriteString(h,"time,close,ma_short,ma_middle,ma_long\r\n");
-   for(int i=0;i<count;i++)
-   {
-      string line=(string)times[i]+","+
-         DoubleToString(close[i],_Digits)+","+
+         (string)rates[i].real_volume+","+
          DoubleToString(maS[i],_Digits)+","+
          DoubleToString(maM[i],_Digits)+","+
-         DoubleToString(maL[i],_Digits)+"\r\n";
-      FileWriteString(h,line);
-   }
-   FileClose(h);
-   return fname;
-}
-
-//---- RSI CSV ----//
-string WriteRsiCsv(const string id, const datetime &times[], const double &close[],
-                   const double &rsi[], const int count)
-{
-   string fname="mt5_rsi_"+id+".csv";
-   int h=FileOpen(fname, FILE_WRITE|FILE_COMMON|FILE_ANSI);
-   if(h==INVALID_HANDLE)
-   {
-      Print("rsi csv open failed id=",id," err=",GetLastError());
-      return "";
-   }
-   FileWriteString(h,"time,close,rsi\r\n");
-   for(int i=0;i<count;i++)
-   {
-      string line=(string)times[i]+","+
-         DoubleToString(close[i],_Digits)+","+
+         DoubleToString(maL[i],_Digits)+","+
          DoubleToString(rsi[i],_Digits)+"\r\n";
       FileWriteString(h,line);
    }
@@ -294,9 +214,9 @@ string WriteRsiCsv(const string id, const datetime &times[], const double &close
 //================ ライフサイクル ================//
 int OnInit()
 {
-   // 高速化したければ EventSetMillisecondTimer(200) でもOK（環境により使用可）
    EventSetTimer(1);
-   Print("WSL_FileBridge started. CommonFiles=", TerminalInfoString(TERMINAL_COMMONDATA_PATH), "\\Files\\");
+   Print("WSL_FileBridge started. CommonFiles=",
+         TerminalInfoString(TERMINAL_COMMONDATA_PATH), "\\Files\\");
    return(INIT_SUCCEEDED);
 }
 
@@ -307,7 +227,7 @@ void OnDeinit(const int reason)
 
 void OnTick()
 {
-   /* ポーリングはOnTimer */
+   // ポーリングは OnTimer で実施
 }
 
 void OnTimer()
@@ -319,7 +239,9 @@ void OnTimer()
 //================ メイン処理 ================//
 void ProcessCommand()
 {
-   int h=FileOpen(CMD_FILE_NAME, FILE_READ|FILE_COMMON|FILE_ANSI|FILE_SHARE_READ|FILE_SHARE_WRITE);
+   int h=FileOpen(CMD_FILE_NAME,
+                  FILE_READ|FILE_COMMON|FILE_ANSI|
+                  FILE_SHARE_READ|FILE_SHARE_WRITE);
    if(h==INVALID_HANDLE)
    {
       Print("CMD open failed err=",GetLastError());
@@ -330,7 +252,7 @@ void ProcessCommand()
    string id="", action="", symbol="", type_s="", comment="";
    string timeframe_s="M1", method_s="SMA", price_s="CLOSE";
    int    period_short=5, period_middle=20, period_long=60;
-   int    deviation=10, count=300, ma_shift=1; // shift=1 で確定バー
+   int    deviation=10, count=300, ma_shift=1; // ma_shift は GET_MA_LATEST 用
    double volume=0.0, sl=0.0, tp=0.0;
 
    while(!FileIsEnding(h))
@@ -439,52 +361,6 @@ void ProcessCommand()
       WriteResponseOK_Order(id,res.order,res.retcode,req.price);
       return;
    }
-   //--- レートCSV（count<=0 なら全バー）
-   else if(action=="COPY_RATES")
-   {
-      if(symbol=="")
-      {
-         WriteResponseError(id,"missing symbol");
-         return;
-      }
-
-      ENUM_TIMEFRAMES tf;
-      if(!StrToTimeframe(timeframe_s, tf))
-      {
-         WriteResponseError(id,"bad timeframe: "+timeframe_s);
-         return;
-      }
-
-      ResetLastError();
-      int bars_total = Bars(symbol, tf);
-      int err_bars   = GetLastError();
-      if(bars_total <= 0)
-      {
-         WriteResponseError(id,"Bars() failed",(int)err_bars);
-         return;
-      }
-
-      // count<=0 なら全バー。それ以外は min(count, bars_total)
-      if(count <= 0 || count > bars_total)
-         count = bars_total;
-
-      MqlRates rates[];
-      int copied = CopyRates(symbol, tf, 0, count, rates);
-      if(copied <= 0)
-      {
-         WriteResponseError(id,"CopyRates failed",(int)GetLastError());
-         return;
-      }
-
-      string csv=WriteRatesCsv(id, rates, copied);
-      if(csv=="")
-      {
-         WriteResponseError(id,"write csv failed");
-         return;
-      }
-      WriteResponseOK_Rates(id,symbol,timeframe_s,copied,csv);
-      return;
-   }
    //--- 最新MA値（短/中/長）を返す
    else if(action=="GET_MA_LATEST")
    {
@@ -551,7 +427,7 @@ void ProcessCommand()
                                 r[0].time, r[0].close);
       return;
    }
-   //--- MAシリーズCSV（短/中/長）（count<=0 なら全バー）
+   //--- 全部入りCSV（ローソク＋移動平均＋RSI）
    else if(action=="COPY_MA")
    {
       if(symbol=="")
@@ -585,6 +461,10 @@ void ProcessCommand()
       if(period_middle<=0) period_middle=20;
       if(period_long<=0)   period_long=60;
 
+      // RSIの期間は period_short を流用（<=0なら14）
+      int period_rsi = period_short;
+      if(period_rsi<=0) period_rsi = 14;
+
       ResetLastError();
       int bars_total = Bars(symbol, tf);
       int err_bars   = GetLastError();
@@ -596,12 +476,14 @@ void ProcessCommand()
       if(count <= 0 || count > bars_total)
          count = bars_total;
 
-      int hS=iMA(symbol, tf, MathMax(1,period_short), 0, mm, ap);
-      int hM=iMA(symbol, tf, MathMax(1,period_middle),0, mm, ap);
-      int hL=iMA(symbol, tf, MathMax(1,period_long),  0, mm, ap);
-      if(hS==INVALID_HANDLE || hM==INVALID_HANDLE || hL==INVALID_HANDLE)
+      int hS   = iMA(symbol, tf, MathMax(1,period_short),  0, mm, ap);
+      int hM   = iMA(symbol, tf, MathMax(1,period_middle), 0, mm, ap);
+      int hL   = iMA(symbol, tf, MathMax(1,period_long),   0, mm, ap);
+      int hRsi = iRSI(symbol, tf, period_rsi, ap);
+      if(hS==INVALID_HANDLE || hM==INVALID_HANDLE ||
+         hL==INVALID_HANDLE || hRsi==INVALID_HANDLE)
       {
-         WriteResponseError(id,"iMA handle failed",(int)GetLastError());
+         WriteResponseError(id,"iMA/iRSI handle failed",(int)GetLastError());
          return;
       }
 
@@ -613,36 +495,27 @@ void ProcessCommand()
          return;
       }
 
-      double bS[], bM[], bL[];
+      double bS[], bM[], bL[], bRsi[];
       if(CopyBuffer(hS,0,0,copied,bS)!=copied ||
          CopyBuffer(hM,0,0,copied,bM)!=copied ||
-         CopyBuffer(hL,0,0,copied,bL)!=copied)
+         CopyBuffer(hL,0,0,copied,bL)!=copied ||
+         CopyBuffer(hRsi,0,0,copied,bRsi)!=copied)
       {
-         WriteResponseError(id,"CopyBuffer(iMA) count mismatch",(int)GetLastError());
+         WriteResponseError(id,"CopyBuffer(iMA/iRSI) count mismatch",(int)GetLastError());
          return;
       }
 
-      datetime ts[];
-      double   closes[];
-      ArrayResize(ts, copied);
-      ArrayResize(closes, copied);
-      for(int i=0;i<copied;i++)
-      {
-         ts[i]=rates[i].time;
-         closes[i]=rates[i].close;
-      }
-
-      string csv=WriteMaCsv(id, ts, closes, bS, bM, bL, copied);
+      string csv = WriteBarsFullCsv(id, rates, bS, bM, bL, bRsi, copied);
       if(csv=="")
       {
-         WriteResponseError(id,"write ma csv failed");
+         WriteResponseError(id,"write full bars csv failed");
          return;
       }
 
       int resp=FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
       if(resp==INVALID_HANDLE)
       {
-         Print("resp(copy_ma) open failed id=",id);
+         Print("resp(copy_ma/full) open failed id=",id);
          return;
       }
       FileWriteString(resp,"ok=true\r\n");
@@ -652,158 +525,8 @@ void ProcessCommand()
       FileWriteString(resp,"period_short="+(string)period_short+"\r\n");
       FileWriteString(resp,"period_middle="+(string)period_middle+"\r\n");
       FileWriteString(resp,"period_long="+(string)period_long+"\r\n");
+      FileWriteString(resp,"period_rsi="+(string)period_rsi+"\r\n");
       FileWriteString(resp,"method="+method_norm+"\r\n");
-      FileWriteString(resp,"applied_price="+price_norm+"\r\n");
-      FileWriteString(resp,"count="+(string)copied+"\r\n");
-      FileWriteString(resp,"data_file="+csv+"\r\n");
-      FileClose(resp);
-      return;
-   }
-   //--- 最新RSI値
-   else if(action=="GET_RSI_LATEST")
-   {
-      if(symbol=="")
-      {
-         WriteResponseError(id,"missing symbol");
-         return;
-      }
-
-      ENUM_TIMEFRAMES tf;
-      if(!StrToTimeframe(timeframe_s, tf))
-      {
-         WriteResponseError(id,"bad timeframe: "+timeframe_s);
-         return;
-      }
-
-      ENUM_APPLIED_PRICE ap;
-      string             price_norm="";
-      if(!StrToAppliedPrice(price_s, ap, price_norm))
-      {
-         WriteResponseError(id,"bad applied_price: "+price_s);
-         return;
-      }
-
-      int period_rsi = period_short;
-      if(period_rsi <= 0)
-         period_rsi = 14;
-      if(ma_shift < 0)
-         ma_shift = 1; // 既定は確定バー
-
-      int hRsi = iRSI(symbol, tf, period_rsi, ap);
-      if(hRsi == INVALID_HANDLE)
-      {
-         WriteResponseError(id,"iRSI handle failed",(int)GetLastError());
-         return;
-      }
-
-      double bufRsi[];
-      if(CopyBuffer(hRsi, 0, ma_shift, 1, bufRsi) != 1)
-      {
-         WriteResponseError(id,"CopyBuffer(iRSI) failed",(int)GetLastError());
-         return;
-      }
-
-      MqlRates r[];
-      if(CopyRates(symbol, tf, ma_shift, 1, r) != 1)
-      {
-         WriteResponseError(id,"CopyRates for RSI bar failed",(int)GetLastError());
-         return;
-      }
-
-      WriteResponseOK_RSI_Latest(id, symbol, timeframe_s,
-                                 period_rsi, price_norm,
-                                 bufRsi[0], r[0].time, r[0].close);
-      return;
-   }
-   //--- RSIシリーズCSV（count<=0 なら全バー）
-   else if(action=="COPY_RSI")
-   {
-      if(symbol=="")
-      {
-         WriteResponseError(id,"missing symbol");
-         return;
-      }
-
-      ENUM_TIMEFRAMES tf;
-      if(!StrToTimeframe(timeframe_s, tf))
-      {
-         WriteResponseError(id,"bad timeframe: "+timeframe_s);
-         return;
-      }
-
-      ENUM_APPLIED_PRICE ap;
-      string             price_norm="";
-      if(!StrToAppliedPrice(price_s, ap, price_norm))
-      {
-         WriteResponseError(id,"bad applied_price: "+price_s);
-         return;
-      }
-
-      int period_rsi = period_short;
-      if(period_rsi <= 0)
-         period_rsi = 14;
-
-      ResetLastError();
-      int bars_total = Bars(symbol, tf);
-      int err_bars   = GetLastError();
-      if(bars_total <= 0)
-      {
-         WriteResponseError(id,"Bars() failed",(int)err_bars);
-         return;
-      }
-      if(count <= 0 || count > bars_total)
-         count = bars_total;
-
-      int hRsi = iRSI(symbol, tf, period_rsi, ap);
-      if(hRsi == INVALID_HANDLE)
-      {
-         WriteResponseError(id,"iRSI handle failed",(int)GetLastError());
-         return;
-      }
-
-      MqlRates rates[];
-      int copied = CopyRates(symbol, tf, 0, count, rates);
-      if(copied <= 0)
-      {
-         WriteResponseError(id,"CopyRates failed",(int)GetLastError());
-         return;
-      }
-
-      double bufRsi[];
-      if(CopyBuffer(hRsi, 0, 0, copied, bufRsi) != copied)
-      {
-         WriteResponseError(id,"CopyBuffer(iRSI) count mismatch",(int)GetLastError());
-         return;
-      }
-
-      datetime ts[];
-      double   closes[];
-      ArrayResize(ts, copied);
-      ArrayResize(closes, copied);
-      for(int i=0;i<copied;i++)
-      {
-         ts[i]     = rates[i].time;
-         closes[i] = rates[i].close;
-      }
-
-      string csv = WriteRsiCsv(id, ts, closes, bufRsi, copied);
-      if(csv=="")
-      {
-         WriteResponseError(id,"write rsi csv failed");
-         return;
-      }
-
-      int resp = FileOpen(RespFileName(id), FILE_WRITE|FILE_COMMON|FILE_ANSI);
-      if(resp == INVALID_HANDLE)
-      {
-         Print("resp(copy_rsi) open failed id=",id);
-         return;
-      }
-      FileWriteString(resp,"ok=true\r\n");
-      FileWriteString(resp,"id="+id+"\r\n");
-      FileWriteString(resp,"symbol="+symbol+"\r\n");
-      FileWriteString(resp,"timeframe="+timeframe_s+"\r\n");
-      FileWriteString(resp,"period="+(string)period_rsi+"\r\n");
       FileWriteString(resp,"applied_price="+price_norm+"\r\n");
       FileWriteString(resp,"count="+(string)copied+"\r\n");
       FileWriteString(resp,"data_file="+csv+"\r\n");

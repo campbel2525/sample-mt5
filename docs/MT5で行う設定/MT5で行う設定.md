@@ -36,20 +36,15 @@ MetaEditor メニュー → 「新規」→「エキスパートアドバイザ�
 
 ## 3) コンパイルする
 
-MetaEditor で F7（コンパイル）。
+コンパイル方法
 
-画面下の「エラー」タブが 0 件になれば OK。
+MT5 > ツール > MetaEditor > ビルド > コンパイル
 
-MQL5\Experts\ に WSL2_FileBridge.ex5 が生成されます。
+画面下の「エラー」タブが 0 件になれば OK。MQL5\Experts\ に WSL2_FileBridge.ex5 が生成されます。
 
-修正する場合
-WSL2_FileBridge.mq5 を開いて修正すればいい
+修正する場合は WSL2_FileBridge.mq5 を開いて修正すればいいです。
 
-MT5 から：[ツール] → [MetaQuotes Language Editor]（ショートカット F4）
-
-で Experts/WSL2_FileBridge.mq5 を修正する
-
-もしくは直接のパスから修正しても OK
+もしくは直接のパスから修正してもいいです
 
 wsl 上でのパス
 
