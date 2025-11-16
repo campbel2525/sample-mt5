@@ -31,7 +31,7 @@ logger = setup_logger(__name__, level=settings.log_level, fmt=settings.log_forma
 # 設定
 POLL_INTERVAL_SEC: float = 60.0
 DEBUG_MODE: bool = settings.debug_mode
-GET_CHART_COUNT: int = 2  # 取得するバー本数（末尾が最新）
+LOOKBACK_BARS: int = 3  # 取得するバー本数（末尾が最新）
 MOVING_AVERAGE_METHOD: str = "SMA"  # 移動平均の算出方法
 MOVING_AVERAGE_SHORT: int = 5  # 短期移動平均の期間
 MOVING_AVERAGE_MIDDLE: int = 20  # 中期移動平均の期間
@@ -74,7 +74,7 @@ def detect_events(
     market_list_data = get_market_data(
         symbol=symbol,
         timeframe=timeframe,
-        lookback_bars=GET_CHART_COUNT,
+        lookback_bars=LOOKBACK_BARS,
         moving_average_short=moving_average_short,
         moving_average_middle=moving_average_middle,
         moving_average_long=moving_average_long,
@@ -100,12 +100,13 @@ def detect_events(
     #         pass
 
     for market_data in market_list_data:
-        rsi_val = market_data.get("rsi")
-        rsi_display = f"{float(rsi_val):.3f}" if rsi_val is not None else "N/A"
+        # rsi_val = market_data.get("rsi")
+        # rsi_display = f"{float(rsi_val):.3f}" if rsi_val is not None else "N/A"
         logger.info(
             (
-                "[%s] symbol=%s timeframe=%s open=%.3f high=%.3f low=%.3f close=%.3f "
-                "%s%s=%.3f %s%s=%.3f %s%s=%.3f rsi=%s"
+                "[%s] symbol=%s timeframe=%s "
+                "open=%.2f high=%.2f low=%.2f close=%.2f "
+                "%s%s=%.3f %s%s=%.3f %s%s=%.3f rsi=%.2f"
             ),
             market_data["time"].isoformat(timespec="seconds"),
             symbol,
@@ -123,7 +124,7 @@ def detect_events(
             moving_average_method,
             moving_average_long,
             market_data["moving_average_long"],
-            rsi_display,
+            market_data["rsi"],
         )
 
     if len(market_list_data) < 2:

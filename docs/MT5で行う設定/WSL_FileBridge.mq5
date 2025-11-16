@@ -108,9 +108,10 @@ void WriteResponseOK_MA_Latest(const string id, const string symbol, const strin
    FileWriteString(h, "period_long="+(string)pL+"\r\n");
    FileWriteString(h, "method="+method+"\r\n");
    FileWriteString(h, "applied_price="+price+"\r\n");
-   FileWriteString(h, "ma_short="+DoubleToString(maS,_Digits)+"\r\n");
-   FileWriteString(h, "ma_middle="+DoubleToString(maM,_Digits)+"\r\n");
-   FileWriteString(h, "ma_long="+DoubleToString(maL,_Digits)+"\r\n");
+   // 移動平均は小数第3桁で返す
+   FileWriteString(h, "ma_short="+DoubleToString(maS,3)+"\r\n");
+   FileWriteString(h, "ma_middle="+DoubleToString(maM,3)+"\r\n");
+   FileWriteString(h, "ma_long="+DoubleToString(maL,3)+"\r\n");
    FileWriteString(h, "bar_time="+(string)bar_time+"\r\n");
    FileWriteString(h, "close="+DoubleToString(close_price,_Digits)+"\r\n");
    FileClose(h);
@@ -201,9 +202,10 @@ string WriteBarsFullCsv(const string id,
          (string)rates[i].tick_volume+","+
          (string)rates[i].spread+","+
          (string)rates[i].real_volume+","+
-         DoubleToString(maS[i],_Digits)+","+
-         DoubleToString(maM[i],_Digits)+","+
-         DoubleToString(maL[i],_Digits)+","+
+         // 移動平均は小数第3桁でCSV出力
+         DoubleToString(maS[i],3)+","+
+         DoubleToString(maM[i],3)+","+
+         DoubleToString(maL[i],3)+","+
          DoubleToString(rsi[i],_Digits)+"\r\n";
       FileWriteString(h,line);
    }
