@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 from config.custom_logger import setup_logger
 from config.settings import Settings
@@ -41,7 +41,7 @@ RSI_PERIOD: int = 14  # RSI計算期間
 last_notified: Dict[Tuple[str, str, str], datetime] = {}
 
 
-def detect_symbol_cross_events(
+def detect_events(
     symbol: str,
     timeframe: str,
     surge_rise_threshold: Optional[float] = 30.0,
@@ -193,57 +193,9 @@ def detect_symbol_cross_events(
     return events
 
 
-def detect_all_cross_events() -> List[str]:
-    """登録済みシンボルすべてでクロス検知を実行し結果をまとめる
-
-    引数:
-        なし
-
-    戻り値:
-        すべての対象で検知されたイベント文のリスト。
-    """
-    detected_events: List[str] = []
-
-    try:
-        # BTCUSD M5
-        events = detect_symbol_cross_events(
-            symbol="ZECUSD",  # 銘柄名
-            timeframe="M5",  # 取得する時間足
-            surge_rise_threshold=30.0,  # 暴騰検知を有効化する上昇幅（ドル
-            crash_drop_threshold=30.0,  # 暴落検知を有効化する下落幅（ドル）
-        )
-        detected_events.extend(events)
-    except Exception as e:
-        logger.warning("ZECUSD detection failed: %s", e)
-
-    try:
-        # BTCUSD M15
-        events = detect_symbol_cross_events(
-            symbol="ZECUSD",  # 銘柄名
-            timeframe="M15",  # 取得する時間足
-            surge_rise_threshold=30.0,  # 暴騰検知を有効化する上昇幅（ドル
-            crash_drop_threshold=30.0,  # 暴落検知を有効化する下落幅（ドル）
-        )
-        detected_events.extend(events)
-    except Exception as e:
-        logger.warning("ZECUSD detection failed: %s", e)
-
-    try:
-        # GOLD M15
-        events = detect_symbol_cross_events(
-            symbol="GOLD",  # 銘柄名
-            timeframe="M15",  # 取得する時間足
-            surge_rise_threshold=30.0,  # 暴騰検知を有効化する上昇幅（ドル
-            crash_drop_threshold=30.0,  # 暴落検知を有効化する下落幅（ドル）
-        )
-        detected_events.extend(events)
-    except Exception as e:
-        logger.warning("GOLD detection failed: %s", e)
-
-    return detected_events
-
-
-def main() -> None:
+def main(
+    target_data_list: List[Dict[str, Any]],
+) -> None:
     """クロス検知を定期実行し検知内容を Slack へ通知する
 
     引数:
@@ -254,8 +206,30 @@ def main() -> None:
     """
     try:
         while True:
-            detected_events = detect_all_cross_events()
+            # 各銘柄・時間足ごとに検知を実行
+            detected_events: List[str] = []
+            for target_data in target_data_list:
+                try:
+                    # BTCUSD M5
+                    events = detect_events(
+                        symbol=target_data["symbol"],  # 銘柄名
+                        timeframe=target_data["timeframe"],  # 取得する時間足
+                        surge_rise_threshold=target_data[
+                            "surge_rise_threshold"
+                        ],  # 暴騰検知を有効化する上昇幅（ドル
+                        crash_drop_threshold=target_data[
+                            "crash_drop_threshold"
+                        ],  # 暴落検知を有効化する下落幅（ドル）
+                    )
+                    detected_events.extend(events)
+                except Exception as e:
+                    logger.warning("ZECUSD detection failed: %s", e)
+                    message = (
+                        f"- {symbol}-{format_timeframe_label(timeframe)}: 検出失敗"
+                    )
+                    detected_events.append(message)
 
+            # 検知内容をSlackへ通知
             if detected_events:
                 message = "以下を検知しました\n\n" + "\n".join(detected_events)
                 try:
@@ -279,4 +253,31 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+
+    target_data_list = [
+        {
+            "symbol": "ZECUSD",
+            "timeframe": "M5",
+            "surge_rise_threshold": 30.0,
+            "crash_drop_threshold": 30.0,
+        },
+        {
+            "symbol": "ZECUSD",
+            "timeframe": "M15",
+            "surge_rise_threshold": 30.0,
+            "crash_drop_threshold": 30.0,
+        },
+        {
+            "symbol": "GOLD",
+            "timeframe": "M5",
+            "surge_rise_threshold": 30.0,
+            "crash_drop_threshold": 30.0,
+        },
+        {
+            "symbol": "GOLD",
+            "timeframe": "M15",
+            "surge_rise_threshold": 30.0,
+            "crash_drop_threshold": 30.0,
+        },
+    ]
     main()
