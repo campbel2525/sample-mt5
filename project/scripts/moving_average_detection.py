@@ -193,63 +193,39 @@ def detect_events(
     return events
 
 
-def main(
-    target_data_list: List[Dict[str, Any]],
-) -> None:
-    """クロス検知を定期実行し検知内容を Slack へ通知する
+def progress_one(target_data_list: float) -> None:
+    # 各銘柄・時間足ごとに検知を実行
+    detected_events: List[str] = []
+    for target_data in target_data_list:
+        try:
+            # BTCUSD M5
+            events = detect_events(
+                symbol=target_data["symbol"],  # 銘柄名
+                timeframe=target_data["timeframe"],  # 取得する時間足
+                surge_rise_threshold=target_data[
+                    "surge_rise_threshold"
+                ],  # 暴騰検知を有効化する上昇幅（ドル
+                crash_drop_threshold=target_data[
+                    "crash_drop_threshold"
+                ],  # 暴落検知を有効化する下落幅（ドル）
+            )
+            detected_events.extend(events)
+        except Exception as e:
+            logger.warning("ZECUSD detection failed: %s", e)
+            message = f"- {target_data["symbol"]}-{format_timeframe_label(target_data["timeframe"])}: 検出失敗"  # noqa
+            detected_events.append(message)
 
-    引数:
-        なし
-
-    戻り値:
-        なし
-    """
-    try:
-        while True:
-            # 各銘柄・時間足ごとに検知を実行
-            detected_events: List[str] = []
-            for target_data in target_data_list:
-                try:
-                    # BTCUSD M5
-                    events = detect_events(
-                        symbol=target_data["symbol"],  # 銘柄名
-                        timeframe=target_data["timeframe"],  # 取得する時間足
-                        surge_rise_threshold=target_data[
-                            "surge_rise_threshold"
-                        ],  # 暴騰検知を有効化する上昇幅（ドル
-                        crash_drop_threshold=target_data[
-                            "crash_drop_threshold"
-                        ],  # 暴落検知を有効化する下落幅（ドル）
-                    )
-                    detected_events.extend(events)
-                except Exception as e:
-                    logger.warning("ZECUSD detection failed: %s", e)
-                    message = (
-                        f"- {symbol}-{format_timeframe_label(timeframe)}: 検出失敗"
-                    )
-                    detected_events.append(message)
-
-            # 検知内容をSlackへ通知
-            if detected_events:
-                message = "以下を検知しました\n\n" + "\n".join(detected_events)
-                try:
-                    notify_slack(
-                        webhook_url=settings.slack_web_hook_url_moving_average_notification,  # noqa
-                        message=message,
-                    )
-                    logger.info("Slack notified: %s", message)
-                except Exception as notify_err:
-                    logger.warning("Slack notification failed: %s", notify_err)
-
-            if POLL_INTERVAL_SEC <= 0:
-                break
-
-            if DEBUG_MODE:
-                logger.debug("sleep %s sec", POLL_INTERVAL_SEC)
-
-            time.sleep(POLL_INTERVAL_SEC)
-    except KeyboardInterrupt:
-        logger.info("Stopped by user (Ctrl+C).")
+    # 検知内容をSlackへ通知
+    if detected_events:
+        message = "以下を検知しました\n\n" + "\n".join(detected_events)
+        try:
+            notify_slack(
+                webhook_url=settings.slack_web_hook_url_moving_average_notification,  # noqa
+                message=message,
+            )
+            logger.info("Slack notified: %s", message)
+        except Exception as notify_err:
+            logger.warning("Slack notification failed: %s", notify_err)
 
 
 if __name__ == "__main__":
@@ -280,4 +256,13 @@ if __name__ == "__main__":
             "crash_drop_threshold": 30.0,
         },
     ]
-    main()
+    while True:
+        progress_one(target_data_list)
+
+        if POLL_INTERVAL_SEC <= 0:
+            break
+
+        if DEBUG_MODE:
+            logger.debug("sleep %s sec", POLL_INTERVAL_SEC)
+
+        time.sleep(POLL_INTERVAL_SEC)
