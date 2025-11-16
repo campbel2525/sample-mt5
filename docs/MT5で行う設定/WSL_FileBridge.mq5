@@ -252,6 +252,7 @@ void ProcessCommand()
    string id="", action="", symbol="", type_s="", comment="";
    string timeframe_s="M1", method_s="SMA", price_s="CLOSE";
    int    period_short=5, period_middle=20, period_long=60;
+   int    period_rsi=14;
    int    deviation=10, count=300, ma_shift=1; // ma_shift は GET_MA_LATEST 用
    double volume=0.0, sl=0.0, tp=0.0;
 
@@ -277,6 +278,7 @@ void ProcessCommand()
       else if(k=="period_short")  period_short=(int)StringToInteger(v);
       else if(k=="period_middle") period_middle=(int)StringToInteger(v);
       else if(k=="period_long")   period_long=(int)StringToInteger(v);
+      else if(k=="period_rsi")    period_rsi=(int)StringToInteger(v);
       else if(k=="method")        method_s=v;    // SMA/EMA/SMMA/LWMA
       else if(k=="applied_price") price_s=v;     // CLOSE/OPEN/HIGH/...
       else if(k=="ma_shift")      ma_shift=(int)StringToInteger(v); // 0=未確定/1=確定
@@ -461,8 +463,7 @@ void ProcessCommand()
       if(period_middle<=0) period_middle=20;
       if(period_long<=0)   period_long=60;
 
-      // RSIの期間は period_short を流用（<=0なら14）
-      int period_rsi = period_short;
+      // RSIの期間
       if(period_rsi<=0) period_rsi = 14;
 
       ResetLastError();

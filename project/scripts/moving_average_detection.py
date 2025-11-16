@@ -51,6 +51,7 @@ def detect_events(
     moving_average_middle: int = MOVING_AVERAGE_MIDDLE,
     moving_average_long: int = MOVING_AVERAGE_LONG,
     moving_average_method: str = MOVING_AVERAGE_METHOD,
+    rsi_period: int = RSI_PERIOD,
 ) -> List[str]:
     """指定シンボルの移動平均と終値を取得し、クロス/暴騰/暴落を検知する
 
@@ -79,6 +80,7 @@ def detect_events(
         moving_average_long=moving_average_long,
         moving_average_method=moving_average_method,
         price_source="CLOSE",
+        rsi_period=rsi_period,
     )
     logger.info(
         "# %s %s MovingAverage(%s,%s,%s) %s",
@@ -99,11 +101,11 @@ def detect_events(
 
     for market_data in market_list_data:
         rsi_val = market_data.get("rsi")
-        rsi_display = f"{float(rsi_val):.2f}" if rsi_val is not None else "N/A"
+        rsi_display = f"{float(rsi_val):.3f}" if rsi_val is not None else "N/A"
         logger.info(
             (
-                "[%s] symbol=%s timeframe=%s open=%.5f high=%.5f low=%.5f close=%.5f "
-                "%s%s=%.5f %s%s=%.5f %s%s=%.5f rsi=%s"
+                "[%s] symbol=%s timeframe=%s open=%.3f high=%.3f low=%.3f close=%.3f "
+                "%s%s=%.3f %s%s=%.3f %s%s=%.3f rsi=%s"
             ),
             market_data["time"].isoformat(timespec="seconds"),
             symbol,
@@ -173,7 +175,7 @@ def detect_events(
             events.append(
                 (
                     f"- {symbol}が{format_timeframe_label(timeframe)}で"
-                    f"{rise_amount:.2f}ドル上昇 ({prev_market_data['close']:.2f}→{latest_market_data['close']:.2f})"
+                    f"{rise_amount:.3f}ドル上昇 ({prev_market_data['close']:.3f}→{latest_market_data['close']:.3f})"
                 )
             )
 
@@ -189,7 +191,7 @@ def detect_events(
             events.append(
                 (
                     f"- {symbol}が{format_timeframe_label(timeframe)}で"
-                    f"{drop_amount:.2f}ドル下落 ({prev_market_data['close']:.2f}→{latest_market_data['close']:.2f})"
+                    f"{drop_amount:.3f}ドル下落 ({prev_market_data['close']:.3f}→{latest_market_data['close']:.3f})"
                 )
             )
 
@@ -211,6 +213,11 @@ def detect_and_notify_once(target_data_list: List[Dict[str, Any]]) -> None:
                 crash_drop_threshold=target_data[
                     "crash_drop_threshold"
                 ],  # 暴落検知を有効化する下落幅（ドル）
+                moving_average_short=MOVING_AVERAGE_SHORT,
+                moving_average_middle=MOVING_AVERAGE_MIDDLE,
+                moving_average_long=MOVING_AVERAGE_LONG,
+                moving_average_method=MOVING_AVERAGE_METHOD,
+                rsi_period=RSI_PERIOD,
             )
             detected_events.extend(events)
         except Exception as e:

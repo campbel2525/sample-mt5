@@ -43,7 +43,12 @@
 以下のコマンドを実行
 
 ```
-docker compose -f "./docker/local/docker-compose.yml" -p mt5 exec mt5 pipenv run python scripts/moving_average_detection.py --target ZECUSD,M5,30.0,30.0 --target ZECUSD,M15,30.0,30.0 --target GOLD,M5,30.0,30.0 --target GOLD,M15,30.0,30.0
+docker compose -f "./docker/local/docker-compose.yml" -p mt5 exec mt5 \
+  pipenv run python scripts/moving_average_detection.py \
+  --target ZECUSD,M5,30.0,30.0 \
+  --target ZECUSD,M15,30.0,30.0 \
+  --target GOLD,M5,30.0,30.0 \
+  --target GOLD,M15,30.0,30.0
 ```
 
 もしくは
@@ -52,10 +57,10 @@ docker compose -f "./docker/local/docker-compose.yml" -p mt5 exec mt5 pipenv run
 
 ```
 pipenv run python scripts/moving_average_detection.py \
---target ZECUSD,M5,30.0,30.0 \
---target ZECUSD,M15,30.0,30.0 \
---target GOLD,M5,30.0,30.0 \
---target GOLD,M15,30.0,30.0
+  --target ZECUSD,M5,30.0,30.0 \
+  --target ZECUSD,M15,30.0,30.0 \
+  --target GOLD,M5,30.0,30.0 \
+  --target GOLD,M15,30.0,30.0
 ```
 
 target オプションの指定方法は`銘柄,足,暴騰検知用の数値,暴落検知用の数値`となります

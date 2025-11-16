@@ -23,6 +23,7 @@ def get_market_data(
     moving_average_long: int,
     moving_average_method: str,
     price_source: str,
+    rsi_period: int,
     common_dir: Optional[str] = None,
     cmd_file_name: Optional[str] = None,
     resp_prefix: Optional[str] = None,
@@ -43,6 +44,7 @@ def get_market_data(
         moving_average_long: 移動平均（長期）の期間
         moving_average_method: 移動平均の算出方法（SMA/EMA/SMMA/LWMA）
         price_source: インジケータの適用価格（CLOSE/OPEN/HIGH/LOW/...）
+        rsi_period: RSI の期間（>0 で有効。0 以下は EA 側の既定値にフォールバック）
         common_dir: MT5の共有ディレクトリ。未指定時は Settings.mt5_common_dir を使用
         cmd_file_name: コマンドファイル名。未指定時は Settings.mt5_cmd_file_name を使用
         resp_prefix: 応答ファイル接頭辞。未指定時は Settings.mt5_resp_prefix を使用
@@ -69,6 +71,7 @@ def get_market_data(
         moving_average_long,
         moving_average_method,
         price_source,
+        rsi_period,
     )
 
     return _load_bars_full_csv(csv_path)
@@ -252,6 +255,7 @@ class OperatorMT5:
         moving_average_long: int,
         moving_average_method: str,
         price_source: str,
+        rsi_period: int,
     ) -> Path:
         """全部入りCSV（ローソク+MA+RSI）を生成させ、そのファイルパスを返す（内部用）。
 
@@ -284,6 +288,7 @@ class OperatorMT5:
             "period_long": str(moving_average_long),
             "method": moving_average_method,
             "applied_price": price_source,
+            "period_rsi": str(rsi_period),
         }
         logger.debug(
             "send COPY_MA(full) id=%s %s %s count=%s",
