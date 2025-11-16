@@ -193,7 +193,7 @@ def detect_events(
     return events
 
 
-def progress_one(target_data_list: List[Dict[str, Any]]) -> None:
+def detect_and_notify_once(target_data_list: List[Dict[str, Any]]) -> None:
     # 各銘柄・時間足ごとに検知を実行
     detected_events: List[str] = []
     for target_data in target_data_list:
@@ -228,9 +228,9 @@ def progress_one(target_data_list: List[Dict[str, Any]]) -> None:
             logger.warning("Slack notification failed: %s", notify_err)
 
 
-def main(target_data_list: List[Dict[str, Any]]) -> None:
+def run_polling_loop(target_data_list: List[Dict[str, Any]]) -> None:
     while True:
-        progress_one(target_data_list)
+        detect_and_notify_once(target_data_list)
 
         if POLL_INTERVAL_SEC <= 0:
             break
@@ -269,4 +269,4 @@ if __name__ == "__main__":
             "crash_drop_threshold": 30.0,
         },
     ]
-    main(target_data_list)
+    run_polling_loop(target_data_list)
