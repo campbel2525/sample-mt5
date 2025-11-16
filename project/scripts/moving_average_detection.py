@@ -102,10 +102,12 @@ def detect_events(
         rsi_display = f"{float(rsi_val):.2f}" if rsi_val is not None else "N/A"
         logger.info(
             (
-                "[%s] open=%.5f high=%.5f low=%.5f close=%.5f  "
-                "%s%s=%.5f  %s%s=%.5f  %s%s=%.5f  rsi=%s"
+                "[%s] symbol=%s timeframe=%s open=%.5f high=%.5f low=%.5f close=%.5f "
+                "%s%s=%.5f %s%s=%.5f %s%s=%.5f rsi=%s"
             ),
             market_data["time"].isoformat(timespec="seconds"),
+            symbol,
+            timeframe,
             market_data["open"],
             market_data["high"],
             market_data["low"],
