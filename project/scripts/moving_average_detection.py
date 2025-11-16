@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import argparse
 import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
@@ -241,32 +242,36 @@ def run_polling_loop(target_data_list: List[Dict[str, Any]]) -> None:
         time.sleep(POLL_INTERVAL_SEC)
 
 
-if __name__ == "__main__":
+def _parse_args(argv: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    parser = argparse.ArgumentParser(
+        description=("監視対象を引数で指定。例: GOLD,M5,30,30 BTCUSD,M15,none,30")
+    )
+    parser.add_argument(
+        "--target",
+        action="append",
+        metavar="SYMBOL,TIMEFRAME[,SURGE][,CRASH]",
+        help=(
+            "1グループを '--target SYMBOL,TIMEFRAME[,SURGE][,CRASH]' で指定 (複数可)。"
+            "例: --target GOLD,M15,30,30 --target GOLD,M5,none,20"
+        ),
+    )
+    args = parser.parse_args(argv)
 
-    target_data_list = [
-        {
-            "symbol": "ZECUSD",
-            "timeframe": "M5",
-            "surge_rise_threshold": 30.0,
-            "crash_drop_threshold": 30.0,
-        },
-        {
-            "symbol": "ZECUSD",
-            "timeframe": "M15",
-            "surge_rise_threshold": 30.0,
-            "crash_drop_threshold": 30.0,
-        },
-        {
-            "symbol": "GOLD",
-            "timeframe": "M5",
-            "surge_rise_threshold": 30.0,
-            "crash_drop_threshold": 30.0,
-        },
-        {
-            "symbol": "GOLD",
-            "timeframe": "M15",
-            "surge_rise_threshold": 30.0,
-            "crash_drop_threshold": 30.0,
-        },
-    ]
+    target_data_list = []
+    for target_str in args.target:
+        data = target_str.split(",")
+        target_data_list.append(
+            {
+                "symbol": data[0],
+                "timeframe": data[1],
+                "surge_rise_threshold": float(data[2]),
+                "crash_drop_threshold": float(data[3]),
+            }
+        )
+
+    return target_data_list
+
+
+if __name__ == "__main__":
+    target_data_list = _parse_args()
     run_polling_loop(target_data_list)

@@ -21,7 +21,6 @@
 
 図で表すと以下の通り
 
-
 <img src="https://github.com/campbel2525/sample-mt5/blob/main/docs/%E6%A7%8B%E6%88%90%E5%9B%B3/%E6%A7%8B%E6%88%90%E5%9B%B3.png">
 
 # 環境設定
@@ -41,8 +40,22 @@
 
 ## 4. プログラムの実行
 
-- `docker compose -f "./docker/local/docker-compose.yml" -p mt5 exec mt5 pipenv run python scripts/moving_average_detection.py`を実行
+以下のコマンドを実行
+
+```
+docker compose -f "./docker/local/docker-compose.yml" -p mt5 exec mt5 pipenv run python scripts/moving_average_detection.py --target ZECUSD,M5,30.0,30.0 --target ZECUSD,M15,30.0,30.0 --target GOLD,M5,30.0,30.0 --target GOLD,M15,30.0,30.0
+```
 
 もしくは
 
-- `make shell`で Docker の中に入って`pipenv run python scripts/moving_average_detection.py`を実行
+- `make shell`で Docker の中に入った後に以下のコマンドを実行
+
+```
+pipenv run python scripts/moving_average_detection.py \
+--target ZECUSD,M5,30.0,30.0 \
+--target ZECUSD,M15,30.0,30.0 \
+--target GOLD,M5,30.0,30.0 \
+--target GOLD,M15,30.0,30.0
+```
+
+target オプションの指定方法は`銘柄,足,暴騰検知用の数値,暴落検知用の数値`となります
