@@ -295,26 +295,9 @@ class OperatorMT5:
             "applied_price": price_source,
             "period_rsi": str(rsi_period),
         }
-        # logger.debug(
-        #     "send COPY_MA(full) id=%s %s %s count=%s",
-        #     cmd_id,
-        #     symbol,
-        #     timeframe,
-        #     lookback_bars,
-        # )
-        # logger.info("COPY_MA kv=%s", kv)
         resp = self.send(kv)
         if resp.get("ok", "false").lower() != "true":
             raise RuntimeError(f"EA error: {resp.get('error', 'unknown')}")
-        # # 確認用（EAが採用した期間をログに出す）
-        # logger.info(
-        #     "EA COPY_MA params ack: short=%s middle=%s long=%s rsi=%s count=%s",
-        #     resp.get("period_short"),
-        #     resp.get("period_middle"),
-        #     resp.get("period_long"),
-        #     resp.get("period_rsi"),
-        #     resp.get("count"),
-        # )
         csv_name = resp.get("data_file", "")
         if not csv_name:
             raise RuntimeError("EA response missing 'data_file'")

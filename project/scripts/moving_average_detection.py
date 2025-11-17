@@ -131,8 +131,8 @@ def detect_events(
         return events
 
     # チャートの状態を検知してテキストを作成する
-    prev_market_data = market_list_data[-3]
-    latest_market_data = market_list_data[-2]
+    prev_market_data = market_list_data[-2]
+    latest_market_data = market_list_data[-1]
 
     # デッドクロス検知
     if is_death_cross(
