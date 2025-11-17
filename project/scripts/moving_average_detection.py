@@ -127,12 +127,12 @@ def detect_events(
             market_data["rsi"],
         )
 
-    if len(market_list_data) < 2:
+    if len(market_list_data) < LOOKBACK_BARS:
         return events
 
     # チャートの状態を検知してテキストを作成する
-    prev_market_data = market_list_data[-2]
-    latest_market_data = market_list_data[-1]
+    prev_market_data = market_list_data[-3]
+    latest_market_data = market_list_data[-2]
 
     # デッドクロス検知
     if is_death_cross(

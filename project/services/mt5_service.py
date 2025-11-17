@@ -371,7 +371,7 @@ class OperatorMT5:
             if resp.exists():
                 data = self._read_kv_file(resp)
                 try:
-                    # resp.unlink()
+                    resp.unlink()
                     pass
                 except OSError:
                     pass
