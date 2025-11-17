@@ -1,6 +1,8 @@
 # 概要
 
-株取引である MT5 を監視してゴールデンクロスなどを検知して slack へ通知を出すプログラムを作りました
+株取引である MT5 を監視してゴールデンクロス、デッドクロスなどを検知して slack へ通知を出すプログラムを作りました
+
+ゴールデンクロス、デッドクロスが発生すると、株の流れが大きく変わることが多いため検知できると有利だと考えたからです
 
 制約
 
@@ -14,7 +16,9 @@
 今回作成した仕組みは以下の通りです
 
 1. MT5 上で`docs/MT5で行う設定/WSL_FileBridge.mq5`を常時実行しておく
+   
    a. `/mnt/c/Users/campbel/AppData/Roaming/MetaQuotes/Terminal/Common/Files`に移動平均線のデータがユニークな id 付きの csv で保存される
+   
    b. 例) `mt5_ma_20251113T165918Z_8fdf77.csv`
 
 2. `/mnt/c/Users/campbel/AppData/Roaming/MetaQuotes/Terminal/Common/Files`に作成されたファイルを WSL 上の Python から定期的に読み取り移動平均線のデータを取得して解析を行う
@@ -40,19 +44,30 @@
 
 ## 4. プログラムの実行
 
+- 移動平均線の検知参照
+
+# 移動平均線の検知
+
+## 概要
+
+移動平均線は
+
+- 短期移動平均線: 5日
+- 中期移動平均線: 20日
+- 長期移動平均線: 60日
+
+と定義しています。
+
+ゴールデンクロス、デッドクロスは**短期**移動平均線が**長期**移動平均線を横切った時と定義しています
+
+
+## 実行方法
+
 以下のコマンドを実行
 
 ```
 docker compose -f "./docker/local/docker-compose.yml" -p mt5 exec mt5 \
   pipenv run python scripts/moving_average_detection.py --target ZECUSD,M5,30.0,30.0
-```
-
-もしくは
-
-- `make shell`で Docker の中に入った後に以下のコマンドを実行
-
-```
-pipenv run python scripts/moving_average_detection.py --target ZECUSD,M5,30.0,30.0
 ```
 
 target オプションの指定方法は`銘柄,足,暴騰検知用の数値,暴落検知用の数値`となります
