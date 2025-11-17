@@ -82,63 +82,63 @@ def get_market_data(
     return data
 
 
-def order_send(
-    symbol: str,
-    order_type: str,
-    volume: float,
-    sl: float = 0.0,
-    tp: float = 0.0,
-    deviation: int = 10,
-    comment: str = "",
-    common_dir: Optional[str] = None,
-    cmd_file_name: Optional[str] = None,
-    resp_prefix: Optional[str] = None,
-) -> Dict[str, str]:
-    """MT5 EA（ORDER_SEND）で成行のBUY/SELL注文を送信する。
+# def order_send(
+#     symbol: str,
+#     order_type: str,
+#     volume: float,
+#     sl: float = 0.0,
+#     tp: float = 0.0,
+#     deviation: int = 10,
+#     comment: str = "",
+#     common_dir: Optional[str] = None,
+#     cmd_file_name: Optional[str] = None,
+#     resp_prefix: Optional[str] = None,
+# ) -> Dict[str, str]:
+#     """MT5 EA（ORDER_SEND）で成行のBUY/SELL注文を送信する。
 
-    概要:
-        EAへ成行注文を発行し、チケット番号や約定価格などの結果を辞書で返します。
-        端末側の自動売買設定やシンボル取引許可が必要です。
+#     概要:
+#         EAへ成行注文を発行し、チケット番号や約定価格などの結果を辞書で返します。
+#         端末側の自動売買設定やシンボル取引許可が必要です。
 
-    引数:
-        symbol: 銘柄名
-        order_type: "BUY" または "SELL"
-        volume: 取引数量（ロット）
-        sl: 損切りの価格（0で未設定）
-        tp: 利確の価格（0で未設定）
-        deviation: 許容スリッページ（ポイント）
-        comment: 注文コメント
-        common_dir: MT5の共有ディレクトリ。未指定時は Settings.mt5_common_dir を使用
-        cmd_file_name: コマンドファイル名。未指定時は Settings.mt5_cmd_file_name を使用
-        resp_prefix: 応答ファイル接頭辞。未指定時は Settings.mt5_resp_prefix を使用
+#     引数:
+#         symbol: 銘柄名
+#         order_type: "BUY" または "SELL"
+#         volume: 取引数量（ロット）
+#         sl: 損切りの価格（0で未設定）
+#         tp: 利確の価格（0で未設定）
+#         deviation: 許容スリッページ（ポイント）
+#         comment: 注文コメント
+#         common_dir: MT5の共有ディレクトリ。未指定時は Settings.mt5_common_dir を使用
+#         cmd_file_name: コマンドファイル名。未指定時は Settings.mt5_cmd_file_name を使用
+#         resp_prefix: 応答ファイル接頭辞。未指定時は Settings.mt5_resp_prefix を使用
 
-    戻り値:
-        応答辞書（例: {"ok":"true","ticket":"...","retcode":"...","price":"..."}）
-    """
-    common_dir = Path(common_dir) if common_dir else None
-    operator_mt5 = OperatorMT5(
-        common_dir or Path(settings.mt5_common_dir),
-        cmd_file_name or settings.mt5_cmd_file_name,
-        resp_prefix or settings.mt5_resp_prefix,
-    )
+#     戻り値:
+#         応答辞書（例: {"ok":"true","ticket":"...","retcode":"...","price":"..."}）
+#     """
+#     common_dir = Path(common_dir) if common_dir else None
+#     operator_mt5 = OperatorMT5(
+#         common_dir or Path(settings.mt5_common_dir),
+#         cmd_file_name or settings.mt5_cmd_file_name,
+#         resp_prefix or settings.mt5_resp_prefix,
+#     )
 
-    cmd_id = operator_mt5.new_id()
-    kv: Dict[str, str] = {
-        "id": cmd_id,
-        "action": "ORDER_SEND",
-        "symbol": symbol,
-        "type": order_type,
-        "volume": str(volume),
-        "sl": str(sl),
-        "tp": str(tp),
-        "deviation": str(deviation),
-        "comment": comment,
-    }
-    resp = operator_mt5.send(kv)
-    if resp.get("ok", "false").lower() != "true":
-        raise RuntimeError(f"EA error: {resp.get('error', 'unknown')}")
-    # 返却例: { ok=true, id=..., ticket=..., retcode=..., price=... }
-    return resp
+#     cmd_id = operator_mt5.new_id()
+#     kv: Dict[str, str] = {
+#         "id": cmd_id,
+#         "action": "ORDER_SEND",
+#         "symbol": symbol,
+#         "type": order_type,
+#         "volume": str(volume),
+#         "sl": str(sl),
+#         "tp": str(tp),
+#         "deviation": str(deviation),
+#         "comment": comment,
+#     }
+#     resp = operator_mt5.send(kv)
+#     if resp.get("ok", "false").lower() != "true":
+#         raise RuntimeError(f"EA error: {resp.get('error', 'unknown')}")
+#     # 返却例: { ok=true, id=..., ticket=..., retcode=..., price=... }
+#     return resp
 
 
 def _load_bars_full_csv(csv_path: Path) -> List[Dict[str, object]]:
