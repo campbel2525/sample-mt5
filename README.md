@@ -16,7 +16,9 @@
 今回作成した仕組みは以下の通りです
 
 1. MT5 上で`docs/MT5で行う設定/WSL_FileBridge.mq5`を常時実行しておく
+   
    a. `/mnt/c/Users/campbel/AppData/Roaming/MetaQuotes/Terminal/Common/Files`に移動平均線のデータがユニークな id 付きの csv で保存される
+   
    b. 例) `mt5_ma_20251113T165918Z_8fdf77.csv`
 
 2. `/mnt/c/Users/campbel/AppData/Roaming/MetaQuotes/Terminal/Common/Files`に作成されたファイルを WSL 上の Python から定期的に読み取り移動平均線のデータを取得して解析を行う
