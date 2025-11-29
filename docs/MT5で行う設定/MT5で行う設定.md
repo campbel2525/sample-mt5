@@ -2,9 +2,9 @@
 
 初回セットアップ（MT5 側）
 
-## 0) 事前に用意しておくもの
+<!-- ## 0) 事前に用意しておくもの
 
-先に渡した EA コード（WSL2_FileBridge.mq5）
+EA コード（WSL2_FileBridge.mq5）
 ※ まだファイルが無い場合は、後の手順で「新規作成 → 貼り付け」します。
 
 ## 1) データフォルダの場所を開く（あとで Docker で使うパス確認）
@@ -16,23 +16,22 @@ MT5 メニュー → 「ファイル」→「データフォルダを開く」
 後で使う共有フォルダは
 `C:\Users\<Windows ユーザー>\AppData\Roaming\MetaQuotes\Terminal\Common\Files`
 
-（エクスプローラで一度辿って場所を覚えておく）
+（エクスプローラで一度辿って場所を覚えておく） -->
 
 ## 2) EA ファイルを置く（または新規作成）
 
-A. 既に WSL2_FileBridge.mq5 がある場合
+WSL 上のパスで`/mnt/c/Users/<user名>/AppData/Roaming/MetaQuotes/Terminal/<id>/MQL5/Experts/WSL2_FileBridge.mq5`
+に`docs/MT5で行う設定/WSL_FileBridge.mq5`をコピペする
 
-データフォルダ内の MQL5\Experts\ に WSL2_FileBridge.mq5 をコピー。
+Docker 上ではなく WSL 上なことに注意
 
-B. まだファイルがない場合（MetaEditor で新規作成）
+修正方法参考
 
-MT5 のツールバー → 「MetaEditor」 を開く。
+```
+vi /mnt/c/Users/<user名>/AppData/Roaming/MetaQuotes/Terminal/<id>/MQL5/Experts/WSL2_FileBridge.mq5
+```
 
-MetaEditor メニュー → 「新規」→「エキスパートアドバイザ（テンプレート）」 を選択。
-
-名前に WSL2_FileBridge と入力 → 次へ → 完了。
-
-生成されたコードを全選択で削除して、私が渡した EA コードを貼り付け → 保存。
+で保存する。`<user名>`、`<id>`は自分の環境に置き換えること
 
 ## 3) コンパイルする
 
