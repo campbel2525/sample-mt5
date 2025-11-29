@@ -44,6 +44,7 @@ push:
 	git push origin HEAD
 
 reset-commit: ## mainブランチのコミット履歴を1つにする 使用は控える
+	git pull origin HEAD
 	git checkout --orphan new-branch-name
 	git add .
 	git branch -D main
