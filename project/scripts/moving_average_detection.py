@@ -24,6 +24,7 @@ from services.chart_service import (
 )
 from services.mt5_service import get_market_data
 from services.slack_service import notify_slack
+from services.line_service import send_line_group_message
 
 settings = Settings()
 logger = setup_logger(__name__, level=settings.log_level, fmt=settings.log_format)
@@ -204,7 +205,6 @@ def detect_and_notify_once(target_data_list: List[Dict[str, Any]]) -> None:
     detected_events: List[str] = []
     for target_data in target_data_list:
         try:
-            # BTCUSD M5
             events = detect_events(
                 symbol=target_data["symbol"],  # 銘柄名
                 timeframe=target_data["timeframe"],  # 取得する時間足
@@ -226,9 +226,15 @@ def detect_and_notify_once(target_data_list: List[Dict[str, Any]]) -> None:
             message = f"- {target_data["symbol"]}-{format_timeframe_label(target_data["timeframe"])}: 検出失敗"  # noqa
             detected_events.append(message)
 
-    # 検知内容をSlackへ通知
-    if detected_events:
-        message = "以下を検知しました\n\n" + "\n".join(detected_events)
+    # 検知結果がなければ終了
+    if not detected_events:
+        logger.info("No events detected.")
+        return
+
+    message = "以下を検知しました\n\n" + "\n".join(detected_events)
+
+    # Slackへ通知
+    if settings.slack_web_hook_url_moving_average_notification:
         try:
             notify_slack(
                 webhook_url=settings.slack_web_hook_url_moving_average_notification,  # noqa
@@ -237,6 +243,23 @@ def detect_and_notify_once(target_data_list: List[Dict[str, Any]]) -> None:
             logger.info("Slack notified: %s", message)
         except Exception as notify_err:
             logger.warning("Slack notification failed: %s", notify_err)
+
+    # lineグループへ通知
+    # lineへの通史は1時間足が含まれていた場合とする
+    if (
+        settings.line_channel_access_token
+        and settings.line_moving_average_notification_group_id
+        and "1時間足" in message
+    ):
+        try:
+            send_line_group_message(
+                channel_access_token=settings.line_channel_access_token,
+                group_id=settings.line_moving_average_notification_group_id,
+                texts=[message],
+            )
+            logger.info("LINE notified: %s", message)
+        except Exception as notify_err:
+            logger.warning("LINE notification failed: %s", notify_err)
 
 
 def run_polling_loop(target_data_list: List[Dict[str, Any]]) -> None:
@@ -285,3 +308,10 @@ def _parse_args(argv: Optional[List[str]] = None) -> List[Dict[str, Any]]:
 if __name__ == "__main__":
     target_data_list = _parse_args()
     run_polling_loop(target_data_list)
+
+    # line グループ通知テスト
+    # send_line_group_message(
+    #     channel_access_token=settings.line_channel_access_token,
+    #     group_id=settings.line_moving_average_notification_group_id,
+    #     texts=["test"],
+    # )

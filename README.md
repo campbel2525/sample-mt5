@@ -16,9 +16,9 @@
 今回作成した仕組みは以下の通りです
 
 1. MT5 上で`docs/MT5で行う設定/WSL_FileBridge.mq5`を常時実行しておく
-   
+
    a. `/mnt/c/Users/campbel/AppData/Roaming/MetaQuotes/Terminal/Common/Files`に移動平均線のデータがユニークな id 付きの csv で保存される
-   
+
    b. 例) `mt5_ma_20251113T165918Z_8fdf77.csv`
 
 2. `/mnt/c/Users/campbel/AppData/Roaming/MetaQuotes/Terminal/Common/Files`に作成されたファイルを WSL 上の Python から定期的に読み取り移動平均線のデータを取得して解析を行う
@@ -46,20 +46,70 @@
 
 - 移動平均線の検知参照
 
+# line のグループ ID を知る方法
+
+```
+1. 一番お手軽：Webhook.site
+
+サーバー立てずに使える代表格。ログインなしでもOK。
+
+手順
+
+ブラウザで https://webhook.site/ を開く
+→ いきなり画面上に ランダムな URL が出てる（これが受信URL）
+
+その URL をコピーして、LINE Developers の
+「Messaging API 設定 → Webhook URL」 に貼り付ける
+
+「Webhook の利用」を オン
+
+「検証」ボタンを押して、成功になるのを確認
+
+通知に使いたい LINE グループに Bot を招待
+
+そのグループで誰かが何か発言する（「test」でも何でもいい）
+
+再び webhook.site の画面を見ると、左側のリクエスト一覧に1件増えてるのでクリック
+→ 右側の JSON の中にこんなのが出てるはず：
+
+{
+  "events": [
+    {
+      "type": "message",
+      "source": {
+        "type": "group",
+        "groupId": "Cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "message": {
+        "type": "text",
+        "text": "test"
+      }
+    }
+  ]
+}
+
+
+この groupId が 本物のグループID。
+これを今の send_line_group_message() の group_id に入れればOK。
+
+groupId をメモしたら、Webhook.site 側のログは削除してもいいし、
+LINE Developers 側の Webhook URL を空に戻してもOK
+（これ以降は push 送るだけなら Webhook 必須じゃない）
+```
+
 # 移動平均線の検知
 
 ## 概要
 
 移動平均線は
 
-- 短期移動平均線: 5日
-- 中期移動平均線: 20日
-- 長期移動平均線: 60日
+- 短期移動平均線: 5 日
+- 中期移動平均線: 20 日
+- 長期移動平均線: 60 日
 
 と定義しています。
 
 ゴールデンクロス、デッドクロスは**短期**移動平均線が**長期**移動平均線を横切った時と定義しています
-
 
 ## 実行方法
 

@@ -2,14 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "ai_agent",
+      "name": "project",
       "type": "python",
       "request": "attach",
       "port": 9002,
       "host": "localhost",
       "pathMappings": [
         {
-          "localRoot": "${workspaceFolder}/apps/mt5",
+          "localRoot": "${workspaceFolder}/project",
           "remoteRoot": "/project"
         }
       ]
