@@ -1,8 +1,10 @@
 # 概要
 
-株取引である MT5 を監視してゴールデンクロス、デッドクロスなどを検知して slack へ通知を出すプログラムを作りました
+株取引である MT5 を監視してゴールデンクロス、デッドクロスなどを検知して slack line グループへ通知を出すプログラムを作りました
 
-ゴールデンクロス、デッドクロスが発生すると流れが大きく変わることが多いため検知できると有利だと考えたからです
+ゴールデンクロス、デッドクロスが発生すると流れが大きく変わることが多いため検知できると有利だと考えたためです
+
+あとは面白そうだったからです！
 
 制約
 
@@ -33,6 +35,9 @@
 
 - `docker/local/.env.example`を参考にして`docker/local/.env`を作成
 - `project/.env.example`を参考にして`project/.env`を作成
+  - slack へ通知を出す場合は`SLACK_WEB_HOOK_URL_MOVING_AVERAGE_NOTIFICATION`
+  - line の特定のグループへ通知を出す場合は`LINE_CHANNEL_ACCESS_TOKEN`、`LINE_MOVING_AVERAGE_NOTIFICATION_GROUP_ID`
+    - グループ ID の取得の方法参照
 
 ## 2. MT5 の設定を行う
 
@@ -46,56 +51,56 @@
 
 - 移動平均線の検知参照
 
-# line のグループ ID を知る方法
+# グループ ID の取得の方法
 
-```
-1. 一番お手軽：Webhook.site
+サーバー立てずに使える代表格。ログインなしでも OK。
 
-サーバー立てずに使える代表格。ログインなしでもOK。
+### 手順
 
-手順
+1. ブラウザで `https://webhook.site/` を開く
 
-ブラウザで https://webhook.site/ を開く
-→ いきなり画面上に ランダムな URL が出てる（これが受信URL）
+   → いきなり画面上に **ランダムな URL** が出てる（これが受信 URL）
 
-その URL をコピーして、LINE Developers の
-「Messaging API 設定 → Webhook URL」 に貼り付ける
+2. その URL をコピーして、LINE Developers の
 
-「Webhook の利用」を オン
+   **「Messaging API 設定 → Webhook URL」** に貼り付ける
 
-「検証」ボタンを押して、成功になるのを確認
+   - 「Webhook の利用」を **オン**
+   - 「検証」ボタンを押して、成功になるのを確認
 
-通知に使いたい LINE グループに Bot を招待
+3. 通知に使いたい LINE グループに Bot を招待
+4. そのグループで誰かが何か発言する（「test」でも何でもいい）
+5. 再び webhook.site の画面を見ると、左側のリクエスト一覧に 1 件増えてるのでクリック
 
-そのグループで誰かが何か発言する（「test」でも何でもいい）
+   → 右側の JSON の中にこんなのが出てるはず：
 
-再び webhook.site の画面を見ると、左側のリクエスト一覧に1件増えてるのでクリック
-→ 右側の JSON の中にこんなのが出てるはず：
+   ```json
+   {
+     "events": [
+       {
+         "type": "message",
+         "source": {
+           "type": "group",
+           "groupId": "Cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+         },
+         "message": {
+           "type": "text",
+           "text": "test"
+         }
+       }
+     ]
+   }
+   ```
 
-{
-  "events": [
-    {
-      "type": "message",
-      "source": {
-        "type": "group",
-        "groupId": "Cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-      },
-      "message": {
-        "type": "text",
-        "text": "test"
-      }
-    }
-  ]
-}
+   この `groupId` が **本物のグループ ID**。
 
+   これを今の `send_line_group_message()` の `group_id` に入れれば OK。
 
-この groupId が 本物のグループID。
-これを今の send_line_group_message() の group_id に入れればOK。
+6. groupId をメモしたら、Webhook.site 側のログは削除してもいいし、
 
-groupId をメモしたら、Webhook.site 側のログは削除してもいいし、
-LINE Developers 側の Webhook URL を空に戻してもOK
-（これ以降は push 送るだけなら Webhook 必須じゃない）
-```
+   LINE Developers 側の Webhook URL を空に戻しても OK
+
+   （これ以降は push 送るだけなら Webhook 必須じゃない）
 
 # 移動平均線の検知
 
@@ -139,3 +144,12 @@ pipenv run python scripts/moving_average_detection.py \
 --target GOLD,M30,30.0,30.0 \
 --target GOLD,H1,30.0,30.0
 ```
+
+**注意**
+現状は line への通知は 1 時間足の検出が発生した場合とします。line の通知は月の送信回数が決まているためなるべく大きい時間足として送信回数を減らしています
+
+実際 5 分足のゴールデンクロス(デッドクロス)はあまり意味ないですし
+
+そのため lne へ通知をする場合は`--target GOLD,H1,30.0,30.0`のように 1 時間足を含めてください
+
+この辺を変えたい場合は`project/scripts/moving_average_detection.py`の`detect_and_notify_once関数`の`and "1時間足" in message`あたりを修正してください

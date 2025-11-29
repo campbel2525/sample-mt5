@@ -92,13 +92,6 @@ def detect_events(
         moving_average_long,
         moving_average_method,
     )
-    # # RSIはEA計算結果を利用
-    # if market_list_data:
-    #     try:
-    #         latest_rsi = float(market_list_data[-1]["rsi"])  # type: ignore[index]
-    #         logger.info("RSI latest=%.2f", latest_rsi)
-    #     except Exception:
-    #         pass
 
     for market_data in market_list_data:
         # rsi_val = market_data.get("rsi")
