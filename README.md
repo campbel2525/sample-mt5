@@ -36,8 +36,8 @@
 - `docker/local/.env.example`を参考にして`docker/local/.env`を作成
 - `project/.env.example`を参考にして`project/.env`を作成
   - slack へ通知を出す場合は`SLACK_WEB_HOOK_URL_MOVING_AVERAGE_NOTIFICATION`
-  - line の特定のグループへ通知を出す場合は`LINE_CHANNEL_ACCESS_TOKEN`、`LINE_MOVING_AVERAGE_NOTIFICATION_GROUP_ID`
-    - グループ ID の取得の方法参照
+  - LINE の特定のグループへ通知を出す場合は`LINE_CHANNEL_ACCESS_TOKEN`、`LINE_MOVING_AVERAGE_NOTIFICATION_GROUP_ID`
+    - LINE の設定方法参照
 
 ## 2. MT5 の設定を行う
 
@@ -51,7 +51,18 @@
 
 - 移動平均線の検知参照
 
-# グループ ID の取得の方法
+# LINE の設定方法参照
+
+まず以下ことを行てください。詳しい方法はネットで出てきます
+
+1. LINE Developers に登録する
+2. Messaging API を有効化
+3. Messaging API のアクセストークンを発行
+4. グループ作成の許可
+5. 自分のスマホの LINE でグループの作成
+6. グループ ID の取得の方法を参考にして上記で作った lINE のグループ ID を取得
+
+## グループ ID の取得の方法
 
 サーバー立てずに使える代表格。ログインなしでも OK。
 
@@ -146,10 +157,10 @@ pipenv run python scripts/moving_average_detection.py \
 ```
 
 **注意**
-現状は line への通知は 1 時間足の検出が発生した場合とします。line の通知は月の送信回数が決まているためなるべく大きい時間足として送信回数を減らしています
+現状は LINE への通知は 1 時間足の検出が発生した場合とします。月の送信回数が決まているためなるべく大きい時間足として送信回数を減らしています
 
 実際 5 分足のゴールデンクロス(デッドクロス)はあまり意味ないですし
 
-そのため lne へ通知をする場合は`--target GOLD,H1,30.0,30.0`のように 1 時間足を含めてください
+そのため LINE へ通知をする場合は`--target GOLD,H1,30.0,30.0`のように 1 時間足を含めてください
 
 この辺を変えたい場合は`project/scripts/moving_average_detection.py`の`detect_and_notify_once関数`の`and "1時間足" in message`あたりを修正してください
