@@ -2,21 +2,6 @@
 
 初回セットアップ（MT5 側）
 
-<!-- ## 0) 事前に用意しておくもの
-
-EA コード（WSL2_FileBridge.mq5）
-※ まだファイルが無い場合は、後の手順で「新規作成 → 貼り付け」します。
-
-## 1) データフォルダの場所を開く（あとで Docker で使うパス確認）
-
-MT5 メニュー → 「ファイル」→「データフォルダを開く」
-
-開いたエクスプローラで MQL5 フォルダが見えるはず。
-
-後で使う共有フォルダは
-`C:\Users\<Windows ユーザー>\AppData\Roaming\MetaQuotes\Terminal\Common\Files`
-
-（エクスプローラで一度辿って場所を覚えておく） -->
 
 ## 2) EA ファイルを置く（または新規作成）
 
@@ -37,25 +22,16 @@ vi /mnt/c/Users/<user名>/AppData/Roaming/MetaQuotes/Terminal/<id>/MQL5/Experts/
 
 コンパイル方法
 
-MT5 > ツール > MetaEditor > ビルド > コンパイル
+MT5 > ツール > MetaQuotesエディタ 
 
-画面下の「エラー」タブが 0 件になれば OK。MQL5\Experts\ に WSL2_FileBridge.ex5 が生成されます。
+左側のナビゲータで`Experts/WSL2_FileBridge.mq5`を右クリックでメニューを出してコンパイルをクリック
 
-修正する場合は WSL2_FileBridge.mq5 を開いて修正すればいいです。
-
-もしくは直接のパスから修正してもいいです
-
-wsl 上でのパス
-
-`/mnt/c/Users/<user名>/AppData/Roaming/MetaQuotes/Terminal/<id>/MQL5/Experts/WSL2_FileBridge.mq5`
-
-その後はコンパイルを行うこと
 
 ## 4) チャートに EA をアタッチ（載せる）
 
 MT5 に戻る → MT5 の上のメニューで [表示] → [ナビゲータ] をクリック -> エキスパートアドバイザ
 
-WSL2_FileBridge を、任意のチャートにドラッグ＆ドロップ。
+`.WSL2_FileBridge`を、任意のチャートにドラッグ＆ドロップ。
 
 プロパティで以下を確認：
 
@@ -65,7 +41,6 @@ WSL2_FileBridge を、任意のチャートにドラッグ＆ドロップ。
 
 ツールバーの 「Algo Trading（緑の再生ボタン）」を ON。
 
-~~チャート右上の顔アイコンが笑顔になれば稼働中。<- こんなものはない~~
 
 画面下「エキスパート」タブに
 
