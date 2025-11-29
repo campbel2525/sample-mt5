@@ -27,7 +27,7 @@
 
 図で表すと以下の通り
 
-<img src="https://github.com/campbel2525/sample-mt5/blob/main/docs/%E6%A7%8B%E6%88%90%E5%9B%B3/%E6%A7%8B%E6%88%90%E5%9B%B3.png">
+<img src="https://github.com/campbel2525/sample-mt5/blob/main/docs/%E6%A7%8B%E6%88%90%E5%9B%B3/%E6%A7%8B%E6%88%90%E5%9B%B3.png?raw=true">
 
 # 環境設定
 
