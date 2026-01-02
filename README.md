@@ -146,14 +146,18 @@ target オプションの指定方法は`銘柄,足,暴騰検知用の数値,暴
 ```
 docker compose -f "./docker/local/docker-compose.yml" -p mt5 exec mt5 \
 pipenv run python scripts/moving_average_detection.py \
---target ZECUSD,M5,30.0,30.0 \
---target ZECUSD,M15,30.0,30.0 \
---target ZECUSD,M30,30.0,30.0 \
---target ZECUSD,H1,30.0,30.0 \
 --target GOLD,M5,30.0,30.0 \
 --target GOLD,M15,30.0,30.0 \
 --target GOLD,M30,30.0,30.0 \
---target GOLD,H1,30.0,30.0
+--target GOLD,H1,30.0,30.0 \ 
+--target SILVER,M5,30.0,30.0 \
+--target SILVER,M15,30.0,30.0 \
+--target SILVER,M30,30.0,30.0 \
+--target SILVER,H1,30.0,30.0 \ 
+--target XPTUSD,M5,30.0,30.0 \
+--target XPTUSD,M15,30.0,30.0 \
+--target XPTUSD,M30,30.0,30.0 \
+--target XPTUSD,H1,30.0,30.0
 ```
 
 **注意**
