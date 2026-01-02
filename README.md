@@ -149,11 +149,11 @@ pipenv run python scripts/moving_average_detection.py \
 --target GOLD,M5,30.0,30.0 \
 --target GOLD,M15,30.0,30.0 \
 --target GOLD,M30,30.0,30.0 \
---target GOLD,H1,30.0,30.0 \ 
+--target GOLD,H1,30.0,30.0 \
 --target SILVER,M5,30.0,30.0 \
 --target SILVER,M15,30.0,30.0 \
 --target SILVER,M30,30.0,30.0 \
---target SILVER,H1,30.0,30.0 \ 
+--target SILVER,H1,30.0,30.0 \
 --target XPTUSD,M5,30.0,30.0 \
 --target XPTUSD,M15,30.0,30.0 \
 --target XPTUSD,M30,30.0,30.0 \
