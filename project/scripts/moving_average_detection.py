@@ -238,11 +238,11 @@ def detect_and_notify_once(target_data_list: List[Dict[str, Any]]) -> None:
             logger.warning("Slack notification failed: %s", notify_err)
 
     # lineグループへ通知
-    # lineへの通史は1時間足が含まれていた場合とする
+    # lineへの通史は1時間足、4時間足が含まれていた場合とする
     if (
         settings.line_channel_access_token
         and settings.line_moving_average_notification_group_id
-        and "1時間足" in message
+        and ("1時間足" in message or "4時間足" in message)
     ):
         try:
             send_line_group_message(
