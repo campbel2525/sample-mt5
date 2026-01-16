@@ -171,3 +171,5 @@ pipenv run python scripts/moving_average_detection.py \
 そのため LINE へ通知をする場合は`--target GOLD,H1,30.0,30.0`のように 1 時間足を含めてください
 
 この辺を変えたい場合は`project/scripts/moving_average_detection.py`の`detect_and_notify_once関数`の`and "1時間足" in message`あたりを修正してください
+
+#
