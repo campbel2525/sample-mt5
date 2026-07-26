@@ -1,0 +1,37 @@
+# 使用するNode.jsのバージョンを指定
+FROM node:24-slim
+
+# インストール
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    vim \
+    bzip2 \
+    libxcb1 \
+    postgresql-client \
+    nginx \
+    gettext-base \
+    redis-tools \
+    git \
+    ssh \
+    && rm -rf /var/lib/apt/lists/*
+
+# 環境変数
+ENV NODE_ENV=development
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# アプリケーションのディレクトリを設定
+WORKDIR /project
+
+# AIエージェントのインストール
+RUN npm install -g npm@11.8.0 \
+    && npm install -g @openai/codex
+
+# Codex CLIのキーバインド設定
+# Enter: 改行
+# Ctrl+X: 送信
+RUN mkdir -p /root/.codex \
+    && printf '%s\n' \
+    '[tui.keymap.composer]' \
+    'submit = "ctrl-x"' \
+    > /root/.codex/config.toml

@@ -14,3 +14,17 @@ services:
     volumes:
       - ../../project:/project
       - ${META_QUOTES_COMMON_FILE_PATH}:/mt5_common:rw
+
+  ai:
+    build:
+      context: ../../
+      dockerfile: ./docker/local/Dockerfile.ai
+
+    restart: "no"
+    tty: true
+    volumes:
+      - ../../:/project
+      - codex:/root/.codex
+
+volumes:
+  codex:
