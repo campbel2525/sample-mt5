@@ -17,7 +17,7 @@
 
 今回作成した仕組みは以下の通りです
 
-1. MT5 上で`docs/MT5で行う設定/WSL_FileBridge.mq5`を常時実行しておく
+1. MT5 上で`docs/MT5/MT5で行う設定/WSL_FileBridge.mq5`を常時実行しておく
 
    a. `/mnt/c/Users/campbel/AppData/Roaming/MetaQuotes/Terminal/Common/Files`に移動平均線のデータがユニークな id 付きの csv で保存される
 
@@ -75,7 +75,6 @@
 2. その URL をコピーして、LINE Developers の
 
    **「Messaging API 設定 → Webhook URL」** に貼り付ける
-
    - 「Webhook の利用」を **オン**
    - 「検証」ボタンを押して、成功になるのを確認
 
@@ -159,6 +158,7 @@ pipenv run python scripts/moving_average_detection.py \
 ```
 
 XPTUSD
+
 ```
 --target XPTUSD,M5,30.0,30.0 \
 --target XPTUSD,M15,45.0,45.0 \
