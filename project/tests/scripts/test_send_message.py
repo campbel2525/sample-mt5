@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from scripts.send_message import main, send_line_message, send_slack_message
+from scripts.send_message import main, send_slack_message
 
 
 @patch("scripts.send_message.notify_slack")
@@ -8,14 +8,6 @@ def test_send_slack_message(mock_notify_slack) -> None:
     send_slack_message("Slack message")
 
     assert mock_notify_slack.call_args.kwargs["message"] == "Slack message"
-
-
-@patch("scripts.send_message.notify_line")
-def test_send_line_message(mock_notify_line) -> None:
-    send_line_message("LINE message")
-
-    assert mock_notify_line.call_args.kwargs["message"] == "LINE message"
-
 
 @patch("scripts.send_message.send_slack_message")
 def test_main_sends_slack_message(mock_send_slack_message) -> None:
