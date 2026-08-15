@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     # Slack
     slack_web_hook_url_moving_average_notification: str = ""
 
+    # LINE
+    line_channel_access_token: str = ""
+    line_recipient_id: str = ""
+
     # Debug / tooling
     debug_mode: bool = True
     debugpy_port: int = 5678
