@@ -22,6 +22,7 @@ from services.slack_service import notify_slack
 settings = Settings()
 logger = setup_logger(__name__, level=settings.log_level, fmt=settings.log_format)
 
+
 def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="外部から受け取ったメッセージを Slack または LINE へ送信する。"
@@ -49,17 +50,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         if args.destination == "slack":
             notify_slack(
-                    webhook_url=settings.slack_web_hook_url_moving_average_notification,
-                    message=args.message,
-                )
-
+                webhook_url=settings.slack_web_hook_url_moving_average_notification,
+                message=args.message,
+            )
         else:
             send_line_group_message(
                 channel_access_token=settings.line_channel_access_token,
                 group_id=settings.line_moving_average_notification_group_id,
                 texts=[args.message],
             )
-
     except RuntimeError as exc:
         logger.error("Message sending failed: %s", exc)
         return 1
