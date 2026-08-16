@@ -28,7 +28,7 @@ def format_timeframe_label(tf: str) -> str:
     return f"{tf}足"
 
 
-def is_golden_cross_by_ma(
+def is_golden_cross(
     prev_short: float,
     prev_long: float,
     latest_short: float,
@@ -48,7 +48,7 @@ def is_golden_cross_by_ma(
     return prev_short <= prev_long and latest_short > latest_long
 
 
-def is_death_cross_by_ma(
+def is_death_cross(
     prev_short: float,
     prev_long: float,
     latest_short: float,

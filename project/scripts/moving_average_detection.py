@@ -17,8 +17,8 @@ from config.custom_logger import setup_logger
 from config.settings import Settings
 from services.chart_service import (
     format_timeframe_label,
-    is_death_cross_by_ma,
-    is_golden_cross_by_ma,
+    is_death_cross,
+    is_golden_cross,
     is_price_crash,
     is_price_surge,
 )
@@ -129,7 +129,7 @@ def detect_events(
     latest_market_data = market_list_data[-2]
 
     # デッドクロス検知
-    if is_death_cross_by_ma(
+    if is_death_cross(
         prev_market_data["moving_average_short"],
         prev_market_data["moving_average_long"],
         latest_market_data["moving_average_short"],
@@ -144,7 +144,7 @@ def detect_events(
             )
 
     # ゴールデンクロス検知
-    if is_golden_cross_by_ma(
+    if is_golden_cross(
         prev_market_data["moving_average_short"],
         prev_market_data["moving_average_long"],
         latest_market_data["moving_average_short"],
